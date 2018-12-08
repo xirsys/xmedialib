@@ -36,6 +36,7 @@
 defmodule XMediaLib.Stun do
   use Bitwise
   require Logger
+  alias XMediaLib.Stun
 
   @moduledoc """
   The XMediaLib.Stun module provides the RFC 5389 implementation of the STUN protocol for both encoding and decoding.
@@ -103,12 +104,12 @@ defmodule XMediaLib.Stun do
   stream as a response to the calling client.
   ## Example
         iex> response = %Stun{class: :success, method: :binding,
-        ...> transactionid: 123456789012, fingerprint: false, attrs: [
-        ...>   {:"XOR-MAPPED-ADDRESS", {{127,0,0,1}, 12345}},
-        ...>   {:"MAPPED-ADDRESS", {{127,0,0,1}, 12345}},
-        ...>   {:"SOURCE-ADDRESS", {{127,0,0,1}, 12346}},
-        ...>   {:"SOFTWARE", <<"XMediaLib-stun">>}
-        ...> ]}
+        ...> transactionid: 123456789012, fingerprint: false, attrs: %{
+        ...>   xor_mapped_address: {{127,0,0,1}, 12345},
+        ...>   mapped_address: {{127,0,0,1}, 12345},
+        ...>   source_address: {{127,0,0,1}, 12346},
+        ...>   software: <<"XMediaLib-stun">>
+        ...> }
         iex> XMediaLib.Stun.encode(response)
         <<1, 1, 0, 52, 33, 18, 164, 66, 0, 0, 0, 0, 0, 0, 0, 28, 190, 153,
         26, 20, 0, 32, 0, 8, 0, 1, 17, 43, 94, 18, 164, 67, 0, 1, 0, 8, 0,
@@ -116,7 +117,7 @@ defmodule XMediaLib.Stun do
         128, 34, 0, 11, 120, 105, 114, 115, 121, 115, 45, 115, 116, 117,
         110, 0>>
   """
-  def encode(%XMediaLib.Stun{} = config, nkey \\ nil) do
+  def encode(%XMediaLib.Stun{} = config) do
     # Logger.info "STUN_CONN #{inspect config}"
     m = get_method_id(config.method)
     <<m0::size(5), m1::size(3), m2::size(4)>> = <<m::size(12)>>
@@ -129,20 +130,11 @@ defmodule XMediaLib.Stun do
 
     length = byte_size(bin_attrs)
 
-    stun_binary_0 =
-      <<@stun_marker::size(2), m0::size(5), c0::size(1), m1::size(3), c1::size(1), m2::size(4),
-        length::16, @stun_magic_cookie::32, config.transactionid::96, bin_attrs::binary>>
-
-    stun_binary_1 =
-      case config.integrity do
-        false -> stun_binary_0
-        true -> insert_integrity(stun_binary_0, nkey)
-      end
-
-    case config.fingerprint do
-      false -> stun_binary_1
-      true -> insert_fingerprint(stun_binary_1)
-    end
+    <<@stun_marker::size(2), m0::size(5), c0::size(1), m1::size(3), c1::size(1), m2::size(4),
+      length::size(16), @stun_magic_cookie::size(32), config.transactionid::size(96),
+      bin_attrs::binary>>
+    |> maybe_insert_integrity(config)
+    |> maybe_insert_fingerprint(config)
   end
 
   # -------------------------------------------------------------------------------
@@ -433,21 +425,29 @@ defmodule XMediaLib.Stun do
       0x04::size(8), crc::size(32)>>
   end
 
+  defp maybe_insert_fingerprint(stun_binary, %Stun{} = config) do
+    case config.fingerprint do
+      false -> stun_binary
+      true -> insert_fingerprint(stun_binary)
+    end
+  end
+
   # Checks for an integrity marker and its validity in a STUN binary (RFC 3489)
   # Must be called AFTER check_fingerprint due to forward RFC incompatibility
 
   # full check of integrity
-  defp check_integrity(stun_binary, nil), do: {false, stun_binary}
+  def check_integrity(stun_binary, nil), do: {false, stun_binary}
 
-  defp check_integrity(stun_binary, key) when byte_size(stun_binary) > 20 + 24 do
+  def check_integrity(stun_binary, key) when byte_size(stun_binary) > 20 + 24 do
     s = byte_size(stun_binary) - 24
 
     case stun_binary do
       <<message::binary-size(s), 0x00::size(8), 0x08::size(8), 0x00::size(8), 0x14::size(8),
         fingerprint::binary-size(20)>> ->
-        ^fingerprint = hmac_sha1(message, key)
+        ^fingerprint = :crypto.hmac(:sha, key, message)
         <<h::size(16), old_size::size(16), payload::binary>> = message
         new_size = old_size - 24
+        Logger.info("INTEGRITY FOUND")
         {true, <<h::size(16), new_size::size(16), payload::binary>>}
 
       _ ->
@@ -461,19 +461,16 @@ defmodule XMediaLib.Stun do
     do: stun_binary
 
   defp insert_integrity(stun_binary, key) do
-    Logger.info("INSERTING INTEGRITY WITH KEY #{inspect(key)}")
-    <<0::2, type::14, len::16, magic::32, trid::96, attrs::binary>> = stun_binary
-    ## 24 is the length of Message-Integrity attribute
-    nlen = len + 4 + 20
-    value = <<0::2, type::14, nlen::16, magic::32, trid::96, attrs::binary>>
-    integrity = hmac_sha1(value, key)
-    # integrity = enc_attr(?STUN_ATTR_MESSAGE_INTEGRITY, hash)
-    <<0::2, type::14, nlen::16, magic::32, trid::96, attrs::binary, 0x00::size(8), 0x08::size(8),
-      0x00::size(8), 0x14::size(8), integrity::binary-size(20)>>
+    <<h::size(16), _::size(16), message::binary>> = stun_binary
+    s = byte_size(stun_binary) + 24 - 20
+    fingerprint = :crypto.hmac(:sha, key, <<h::size(16), s::size(16), message::binary>>)
+
+    <<h::size(16), s::size(16), message::binary, 0x00::size(8), 0x08::size(8), 0x00::size(8),
+      0x14::size(8), fingerprint::binary>>
   end
 
-  defp hmac_sha1(msg, hash) when is_binary(msg) and is_binary(hash) do
-    key = :crypto.hash(:md5, to_charlist(hash))
-    :crypto.hmac(:sha, key, msg)
-  end
+  defp maybe_insert_integrity(stun_binary, %Stun{key: key}),
+    do: insert_integrity(stun_binary, key)
+
+  defp maybe_insert_integrity(stun_binary, %Stun{}), do: stun_binary
 end
