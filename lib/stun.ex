@@ -41,14 +41,12 @@ defmodule XMediaLib.Stun do
   The XMediaLib.Stun module provides the RFC 5389 implementation of the STUN protocol for both encoding and decoding.
   """
 
-  @doc """
-  Used by the STUN specification RFC 5389 to tag a packet as
-  specifically of a STUN format.
-  """
+  # Used by the STUN specification RFC 5389 to tag a packet as
+  # specifically of a STUN format.
   @stun_marker 0
   @stun_magic_cookie 0x2112A442
 
-  @moduledoc """
+  @doc """
   STUN object structure for per-connection usage
   """
   defstruct class: nil,
@@ -155,12 +153,10 @@ defmodule XMediaLib.Stun do
   @external_resource methods_path = Path.join([__DIR__, "../priv/turn-methods.txt"])
   @external_resource classes_path = Path.join([__DIR__, "../priv/turn-classes.txt"])
 
-  @doc """
-  Encodes an attribute tuple into a new tuple representing its type and
-  an encoded binary representation of its value
-  """
+  # Encodes an attribute tuple into a new tuple representing its type and
+  # an encoded binary representation of its value
   for line <- File.stream!(attrs_path, [], :line) do
-    [byte, name, type] = line |> String.split("\t") |> Enum.map(&String.strip(&1))
+    [byte, name, type] = line |> String.split("\t") |> Enum.map(&String.trim(&1))
 
     case type do
       "value" ->
@@ -185,14 +181,14 @@ defmodule XMediaLib.Stun do
           do: {String.to_integer(unquote(byte)), encode_attr_xaddr(value, tid)}
 
       "error_attribute" ->
-        defp decode_attribute(unquote(String.to_integer(byte)), value, tid),
+        defp decode_attribute(unquote(String.to_integer(byte)), value, _),
           do: {String.to_atom(unquote(name)), decode_attr_err(value)}
 
         defp encode_attribute(unquote(String.to_atom(name)), value, _),
           do: {String.to_integer(unquote(byte)), encode_attr_err(value)}
 
       "request" ->
-        defp decode_attribute(unquote(String.to_integer(byte)), value, tid),
+        defp decode_attribute(unquote(String.to_integer(byte)), value, _),
           do: {String.to_atom(unquote(name)), decode_change_req(value)}
 
         defp encode_attribute(unquote(String.to_atom(name)), value, _),
@@ -210,11 +206,9 @@ defmodule XMediaLib.Stun do
     {other, value}
   end
 
-  @doc """
-  Provides packet method type based on id and vice versa
-  """
+  # Provides packet method type based on id and vice versa
   for line <- File.stream!(methods_path, [], :line) do
-    [id, name] = line |> String.split("\t") |> Enum.map(&String.strip(&1))
+    [id, name] = line |> String.split("\t") |> Enum.map(&String.trim(&1))
 
     defp get_method(<<unquote(String.to_integer(id))::size(12)>>),
       do: unquote(String.to_atom(name))
@@ -229,11 +223,9 @@ defmodule XMediaLib.Stun do
   defp get_method_id(o),
     do: o
 
-  @doc """
-  Provides packet class type based on id and vice versa
-  """
+  # Provides packet class type based on id and vice versa
   for line <- File.stream!(classes_path, [], :line) do
-    [id, name] = line |> String.split("\t") |> Enum.map(&String.strip(&1))
+    [id, name] = line |> String.split("\t") |> Enum.map(&String.trim(&1))
 
     defp get_class(<<unquote(String.to_integer(id))::size(2)>>),
       do: unquote(String.to_atom(name))
@@ -267,7 +259,7 @@ defmodule XMediaLib.Stun do
     padding_length =
       case rem(item_length, 4) do
         0 -> 0
-        other when whole_pkt? -> 0
+        _other when whole_pkt? -> 0
         other -> 4 - other
       end
 
@@ -443,28 +435,6 @@ defmodule XMediaLib.Stun do
 
   # Checks for an integrity marker and its validity in a STUN binary (RFC 3489)
   # Must be called AFTER check_fingerprint due to forward RFC incompatibility
-  # Currently mocked
-  defp check_integrity(stun_binary) do
-    s = byte_size(stun_binary) - 24
-
-    case stun_binary do
-      <<message::binary-size(s), 0x00::size(8), 0x08::size(8), 0x00::size(8), 0x14::size(8),
-        fingerprint::binary-size(20)>> ->
-        try do
-          <<h::size(16), old_size::size(16), payload::binary>> = message
-          new_size = old_size - 24
-          {true, <<h::size(16), new_size::size(16), payload::binary>>}
-        rescue
-          _ ->
-            Logger.info("MESSAGE-INTEGRITY invalid in STUN message.")
-            raise IntegrityError, message: "Integrity check failed"
-        end
-
-      _ ->
-        Logger.info("No MESSAGE-INTEGRITY was found in STUN message.")
-        {false, stun_binary}
-    end
-  end
 
   # full check of integrity
   defp check_integrity(stun_binary, nil), do: {false, stun_binary}
@@ -503,14 +473,7 @@ defmodule XMediaLib.Stun do
   end
 
   defp hmac_sha1(msg, hash) when is_binary(msg) and is_binary(hash) do
-    key = :crypto.hash(:md5, to_char_list(hash))
+    key = :crypto.hash(:md5, to_charlist(hash))
     :crypto.hmac(:sha, key, msg)
   end
-
-  # Removes null value from the end of a list string or bitstring
-  defp fix_null_terminated(str) when is_list(str),
-    do: for(x <- str, x != 0, do: x)
-
-  defp fix_null_terminated(bin) when is_binary(bin),
-    do: for(<<x::8 <- bin>>, x != 0, do: <<x::size(8)>>, into: "")
 end

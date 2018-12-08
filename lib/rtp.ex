@@ -34,6 +34,7 @@
 ### ----------------------------------------------------------------------
 
 defmodule XMediaLib.Rtp do
+  require Logger
   alias XMediaLib.{Rtcp, Rtp, Zrtp, Stun}
 
   @rtp_version 2
@@ -86,36 +87,36 @@ defmodule XMediaLib.Rtp do
   # http://www.ietf.org/rfc/rfc4587.txt
   # http://www.cisco.com/en/US/tech/tk652/tk698/technologies_tech_note09186a0080094ae2.shtml
 
-  @rtp_payload_pcmu 0
-  @rtp_payload_gsm 3
-  @rtp_payload_g723 4
-  @rtp_payload_dvi4_8khz 5
-  @rtp_payload_dvi4_16khz 6
-  @rtp_payload_lpc 7
-  @rtp_payload_pcma 8
-  @rtp_payload_g722 9
-  @rtp_payload_l16_2ch 10
-  @rtp_payload_l16_1ch 11
-  @rtp_payload_qcelp 12
+  # @rtp_payload_pcmu 0
+  # @rtp_payload_gsm 3
+  # @rtp_payload_g723 4
+  # @rtp_payload_dvi4_8khz 5
+  # @rtp_payload_dvi4_16khz 6
+  # @rtp_payload_lpc 7
+  # @rtp_payload_pcma 8
+  # @rtp_payload_g722 9
+  # @rtp_payload_l16_2ch 10
+  # @rtp_payload_l16_1ch 11
+  # @rtp_payload_qcelp 12
   # RFC 3389
-  @rtp_payload_cn 13
-  @rtp_payload_mpa 14
-  @rtp_payload_g728 15
-  @rtp_payload_dvi4_11khz 16
-  @rtp_payload_dvi4_22khz 17
-  @rtp_payload_g729 18
+  # @rtp_payload_cn 13
+  # @rtp_payload_mpa 14
+  # @rtp_payload_g728 15
+  # @rtp_payload_dvi4_11khz 16
+  # @rtp_payload_dvi4_22khz 17
+  # @rtp_payload_g729 18
   # RFC 2029
-  @rtp_payload_celb 25
+  # @rtp_payload_celb 25
   # RFC 2435
-  @rtp_payload_jpeg 26
-  @rtp_payload_nv 28
+  # @rtp_payload_jpeg 26
+  # @rtp_payload_nv 28
   # RFC 4587
-  @rtp_payload_h261 31
+  # @rtp_payload_h261 31
   # RFC 2250
-  @rtp_payload_mpv 32
+  # @rtp_payload_mpv 32
   # RFC 2250
-  @rtp_payload_mp2t 33
-  @rtp_payload_h263 34
+  # @rtp_payload_mp2t 33
+  # @rtp_payload_h263 34
 
   # FIXME move to the header?
   @mbz 0
@@ -185,7 +186,7 @@ defmodule XMediaLib.Rtp do
      }}
   end
 
-  def decode(<<@rtp_version::size(2), _::size(7), payload_type::size(7), rest::binary>> = bin)
+  def decode(<<@rtp_version::size(2), _::size(7), payload_type::size(7), _rest::binary>> = bin)
       when 64 <= payload_type and payload_type <= 82,
       do: Rtcp.decode(bin)
 
@@ -230,7 +231,7 @@ defmodule XMediaLib.Rtp do
       do: {:ok, %Dtmf{event: event, eof: true, volume: volume, duration: duration}}
 
   def decode_dtmf(<<dtmf::binary-size(4), _rest::binary>>) do
-    Logger.warning("Broken DTMF generator (Jitsi?)")
+    Logger.warn("Broken DTMF generator (Jitsi?)")
     decode_dtmf(dtmf)
   end
 

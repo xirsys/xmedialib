@@ -6,8 +6,10 @@ defmodule XMediaLib.Mixfile do
       app: :xmedialib,
       version: "0.1.0",
       elixir: "~> 1.0",
-      deps_path: "../../deps",
-      lockfile: "../../mix.lock",
+      compilers: [:elixir_make] ++ Mix.compilers,
+      package: package(),
+      deps_path: "deps",
+      lockfile: "mix.lock",
       deps: deps()
     ]
   end
@@ -17,6 +19,18 @@ defmodule XMediaLib.Mixfile do
   end
 
   defp deps() do
-    []
+    [
+      {:elixir_make, "~> 0.4", runtime: false},
+      {:skerl, git: "https://github.com/xirsys/skerl.git"}
+    ]
+  end
+
+  defp package do
+    [
+      files: ["lib", "c_src", "mix.exs", "Makefile*", "configure*", "autogen.sh", "README.md"],
+      maintainers: ["Lee Sylvester"],
+      licenses: ["BSD"],
+      links: %{"GitHub" => "https://github.com/xirsys/xmedialib"}
+    ]
   end
 end

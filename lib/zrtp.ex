@@ -36,6 +36,8 @@
 defmodule XMediaLib.Zrtp do
   require Logger
 
+  alias XMediaLib.CRC32C
+
   @zrtp_marker 0x1000
   # <<"ZRTP">>, <<90,82,84,80>>
   @zrtp_magic_cookie 0x5A525450
@@ -58,95 +60,95 @@ defmodule XMediaLib.Zrtp do
   @zrtp_msg_ping "Ping    "
   @zrtp_msg_pingack "PingACK "
 
-  @zrtp_hash_s256 <<"S256">>
-  @zrtp_hash_s384 <<"S384">>
-  @zrtp_hash_n256 <<"N256">>
-  @zrtp_hash_n384 <<"N384">>
-  @zrtp_hash_all_supported [@zrtp_hash_s256, @zrtp_hash_s384]
+  # @zrtp_hash_s256 <<"S256">>
+  # @zrtp_hash_s384 <<"S384">>
+  # @zrtp_hash_n256 <<"N256">>
+  # @zrtp_hash_n384 <<"N384">>
+  # @zrtp_hash_all_supported [@zrtp_hash_s256, @zrtp_hash_s384]
 
-  @zrtp_cipher_aes1 <<"AES1">>
-  @zrtp_cipher_aes2 <<"AES2">>
-  @zrtp_cipher_aes3 <<"AES3">>
-  @zrtp_cipher_2fs1 <<"2FS1">>
-  @zrtp_cipher_2fs2 <<"2FS2">>
-  @zrtp_cipher_2fs3 <<"2FS3">>
-  @zrtp_cipher_all_supported [@zrtp_cipher_aes1, @zrtp_cipher_aes2, @zrtp_cipher_aes3]
+  # @zrtp_cipher_aes1 <<"AES1">>
+  # @zrtp_cipher_aes2 <<"AES2">>
+  # @zrtp_cipher_aes3 <<"AES3">>
+  # @zrtp_cipher_2fs1 <<"2FS1">>
+  # @zrtp_cipher_2fs2 <<"2FS2">>
+  # @zrtp_cipher_2fs3 <<"2FS3">>
+  # @zrtp_cipher_all_supported [@zrtp_cipher_aes1, @zrtp_cipher_aes2, @zrtp_cipher_aes3]
 
-  @zrtp_auth_tag_hs32 <<"HS32">>
-  @zrtp_auth_tag_hs80 <<"HS80">>
-  @zrtp_auth_tag_sk32 <<"SK32">>
-  @zrtp_auth_tag_sk64 <<"SK64">>
-  @zrtp_auth_all_supported [@zrtp_auth_tag_hs32, @zrtp_auth_tag_hs80]
+  # @zrtp_auth_tag_hs32 <<"HS32">>
+  # @zrtp_auth_tag_hs80 <<"HS80">>
+  # @zrtp_auth_tag_sk32 <<"SK32">>
+  # @zrtp_auth_tag_sk64 <<"SK64">>
+  # @zrtp_auth_all_supported [@zrtp_auth_tag_hs32, @zrtp_auth_tag_hs80]
 
   # DH mode with p=2048 bit prime per RFC 3526, Section 3.
-  @zrtp_key_agreement_dh2k <<"DH2k">>
+  # @zrtp_key_agreement_dh2k <<"DH2k">>
   # DH mode with p=3072 bit prime per RFC 3526, Section 4.
-  @zrtp_key_agreement_dh3k <<"DH3k">>
+  # @zrtp_key_agreement_dh3k <<"DH3k">>
   # DH mode with p=3072 bit prime per RFC 3526, Section 5.
-  @zrtp_key_agreement_dh4k <<"DH4k">>
+  # @zrtp_key_agreement_dh4k <<"DH4k">>
   # Elliptic Curve DH, P-256 per RFC 5114, Section 2.6
-  @zrtp_key_agreement_ec25 <<"EC25">>
+  # @zrtp_key_agreement_ec25 <<"EC25">>
   # Elliptic Curve DH, P-384 per RFC 5114, Section 2.7
-  @zrtp_key_agreement_ec38 <<"EC38">>
+  # @zrtp_key_agreement_ec38 <<"EC38">>
   # Elliptic Curve DH, P-521 per RFC 5114, Section 2.8 (deprecated - do not use)
-  @zrtp_key_agreement_ec52 <<"EC52">>
+  # @zrtp_key_agreement_ec52 <<"EC52">>
   # Preshared Non-DH mode
   @zrtp_key_agreement_prsh <<"Prsh">>
   # Multistream Non-DH mode
   @zrtp_key_agreement_mult <<"Mult">>
-  @zrtp_key_agreement_all_supported [
-    @zrtp_key_agreement_dh2k,
-    @zrtp_key_agreement_dh3k,
-    @zrtp_key_agreement_dh4k
-  ]
+  # @zrtp_key_agreement_all_supported [
+  #   @zrtp_key_agreement_dh2k,
+  #   @zrtp_key_agreement_dh3k,
+  #   @zrtp_key_agreement_dh4k
+  # ]
 
-  @zrtp_sas_type_b32 <<"B32 ">>
-  @zrtp_sas_type_b256 <<"B256">>
-  @zrtp_sas_type_all_supported [@zrtp_sas_type_b32, @zrtp_sas_type_b256]
+  # @zrtp_sas_type_b32 <<"B32 ">>
+  # @zrtp_sas_type_b256 <<"B256">>
+  # @zrtp_sas_type_all_supported [@zrtp_sas_type_b32, @zrtp_sas_type_b256]
 
-  @zrtp_signature_type_pgp <<"PGP ">>
-  @zrtp_signature_type_x509 <<"X509">>
+  # @zrtp_signature_type_pgp <<"PGP ">>
+  # @zrtp_signature_type_x509 <<"X509">>
 
   # Malformed packet (CRC OK, but wrong structure)
-  @zrtp_error_malformed_packet 0x10
+  # @zrtp_error_malformed_packet 0x10
   # Critical software error
-  @zrtp_error_software 0x20
+  # @zrtp_error_software 0x20
   # Unsupported ZRTP version
-  @zrtp_error_unsupported_version 0x30
+  # @zrtp_error_unsupported_version 0x30
   # Hello components mismatch
-  @zrtp_error_hello_mismatch 0x40
+  # @zrtp_error_hello_mismatch 0x40
   # Hash Type not supported
-  @zrtp_error_unsupported_hash 0x51
+  # @zrtp_error_unsupported_hash 0x51
   # Cipher Type not supported
-  @zrtp_error_unsupported_cypher 0x52
+  # @zrtp_error_unsupported_cypher 0x52
   # Public key exchange not supported
-  @zrtp_error_unsupported_key_exchange 0x53
+  # @zrtp_error_unsupported_key_exchange 0x53
   # SRTP auth tag not supported
-  @zrtp_error_unsupported_auth_tag 0x54
+  # @zrtp_error_unsupported_auth_tag 0x54
   # SAS rendering scheme not supported
-  @zrtp_error_unsupported_sas 0x55
+  # @zrtp_error_unsupported_sas 0x55
   # No shared secret available, DH mode required
-  @zrtp_error_no_shared_secrets 0x56
+  # @zrtp_error_no_shared_secrets 0x56
   # DH Error: bad pvi or pvr ( == 1, 0, or p-1)
-  @zrtp_error_dh_bad_pv 0x61
+  # @zrtp_error_dh_bad_pv 0x61
   # DH Error: hvi != hashed data
-  @zrtp_error_dh_bad_hv 0x62
+  # @zrtp_error_dh_bad_hv 0x62
   # Received relayed SAS from untrusted MiTM
-  @zrtp_error_mitm 0x63
+  # @zrtp_error_mitm 0x63
   # Auth Error: Bad Confirm pkt MAC
-  @zrtp_error_mac 0x70
+  # @zrtp_error_mac 0x70
   # Nonce reuse
-  @zrtp_error_nonce 0x80
+  # @zrtp_error_nonce 0x80
   # Equal ZIDs in Hello
-  @zrtp_error_zid 0x90
+  # @zrtp_error_zid 0x90
   # SSRC collision
-  @zrtp_error_ssrc 0x91
+  # @zrtp_error_ssrc 0x91
   # Service unavailable
-  @zrtp_error_unavailable 0xA0
+  # @zrtp_error_unavailable 0xA0
   # Protocol timeout error
-  @zrtp_error_timeout 0xB0
+  # @zrtp_error_timeout 0xB0
   # GoClear message received, but not allowed
-  @zrtp_error_goclear_na 0x100
+  # @zrtp_error_goclear_na 0x100
 
   defstruct sequence: 0,
             ssrc: 0,
@@ -276,8 +278,8 @@ defmodule XMediaLib.Zrtp do
     l = byte_size(rest) - 4
     <<bin_message::binary-size(l), crc::size(32)>> = rest
 
-    <<crc::size(32)>> ==
-      :crc32c.crc32c(
+    <<^crc::size(32)>> =
+      CRC32C.crc32c(
         <<@zrtp_marker::size(16), sequence::size(16), @zrtp_magic_cookie::size(32),
           ssrc::size(32), bin_message::binary>>
       )
@@ -290,7 +292,7 @@ defmodule XMediaLib.Zrtp do
     bin_message = encode_message(message)
 
     crc =
-      :crc32c.crc32c(
+      CRC32C.crc32c(
         <<@zrtp_marker::size(16), sequence::size(16), @zrtp_magic_cookie::size(32),
           ssrc::size(32), bin_message::binary>>
       )
@@ -306,7 +308,7 @@ defmodule XMediaLib.Zrtp do
   #################################
 
   def decode_message(
-        <<@zrtp_signature_hello::size(16), length::size(16), @zrtp_msg_hello, @zrtp_version,
+        <<@zrtp_signature_hello::size(16), _len::size(16), @zrtp_msg_hello, @zrtp_version,
           client_identifier::binary-size(16), hash_image_h3::binary-size(32),
           zid::binary-size(12), 0::size(1), s::size(1), m::size(1), p::size(1), _mbz::size(8),
           hc::size(4), cc::size(4), ac::size(4), kc::size(4), sc::size(4), rest::binary>>
@@ -445,7 +447,7 @@ defmodule XMediaLib.Zrtp do
   end
 
   def decode_message(
-        <<@zrtp_signature_hello::size(16), length::size(16), @zrtp_msg_confirm1,
+        <<@zrtp_signature_hello::size(16), _len::size(16), @zrtp_msg_confirm1,
           conf_mac::binary-size(8), cfb_init_vect::binary-size(16), encrypted_data::binary>>
       ),
       do:
@@ -457,7 +459,7 @@ defmodule XMediaLib.Zrtp do
          }}
 
   def decode_message(
-        <<@zrtp_signature_hello::size(16), length::size(16), @zrtp_msg_confirm2,
+        <<@zrtp_signature_hello::size(16), _len::size(16), @zrtp_msg_confirm2,
           conf_mac::binary-size(8), cfb_init_vect::binary-size(16), encrypted_data::binary>>
       ),
       do:
@@ -488,7 +490,7 @@ defmodule XMediaLib.Zrtp do
     do: {:ok, :clearack}
 
   def decode_message(
-        <<@zrtp_signature_hello::size(16), length::size(16), @zrtp_msg_sasrelay,
+        <<@zrtp_signature_hello::size(16), _len::size(16), @zrtp_msg_sasrelay,
           mac::binary-size(8), cfb_init_vect::binary-size(16), _mbz::size(15), sig_len::size(9),
           0::size(4), 0::size(1), v::size(1), a::size(1), d::size(1), rsrsas::binary-size(4),
           mitm_sash_hash::binary-size(32), rest::binary>>
@@ -729,7 +731,7 @@ defmodule XMediaLib.Zrtp do
         disclosure: d,
         cache_exp_interval: cache_exp_interval,
         signature: signature,
-        encrypted_data: nill
+        encrypted_data: nil
       }) do
     signature_bin =
       case signature do

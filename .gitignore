@@ -21,3 +21,29 @@ erl_crash.dump
 
 # This library can run on Elixir 1.4.2 and up, but I use 1.6.6 for formatting
 .tool-versions
+
+# Build files (Ubuntu)
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache/
+c_src/*.la
+c_src/*.lo
+c_src/*.o
+c_src/.deps/
+c_src/.libs/
+c_src/Makefile
+c_src/Makefile.in
+compile
+config.*
+configure
+depcomp
+deps/
+ebin/
+erl_crash.dump
+install-sh
+libtool
+ltmain.sh
+missing
+priv/*.so
+priv/erlang-rtplib.spec
