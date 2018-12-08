@@ -27,9 +27,9 @@ defmodule XMediaLib.Mixfile do
 
   defp package do
     [
-      files: ["lib", "c_src", "mix.exs", "Makefile*", "configure*", "autogen.sh", "README.md"],
+      files: ["lib", "c_src", "mix.exs", "Makefile*", "README.md"],
       maintainers: ["Lee Sylvester"],
-      licenses: ["BSD"],
+      licenses: ["Apache2"],
       links: %{"GitHub" => "https://github.com/xirsys/xmedialib"}
     ]
   end

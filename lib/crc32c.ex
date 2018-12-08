@@ -37,13 +37,7 @@ defmodule XMediaLib.CRC32C do
   @on_load :init
 
   def init() do
-    so_name =
-      case :code.priv_dir(:rtplib) do
-        {:error, :bad_name} -> Path.join("../priv", "crc32c_nif")
-        dir -> Path.join(dir, "crc32c_nif")
-      end
-
-    :erlang.load_nif(so_name, 0)
+    :erlang.load_nif('./priv/crc32c_nif', 0)
   end
 
   def crc32c(_param),

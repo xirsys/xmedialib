@@ -37,13 +37,7 @@ defmodule XMediaLib.SAS do
   @on_load :init
 
   def init() do
-    so_name =
-      case :code.priv_dir(:rtplib) do
-        {:error, :bad_name} -> Path.join("../priv", "sas_nif")
-        dir -> Path.join(dir, "sas_nif")
-      end
-
-    :erlang.load_nif(so_name, 0)
+    :erlang.load_nif('./priv/sas_nif', 0)
   end
 
   def b32(_sas_value), do: "NIF library not loaded"

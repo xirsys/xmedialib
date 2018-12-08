@@ -605,4 +605,4 @@ static ErlNifFunc nif_funcs[] =
 	{"b256", 1, b256}
 };
 
-ERL_NIF_INIT(sas,nif_funcs,NULL,NULL,upgrade,NULL)
+ERL_NIF_INIT(Elixir.XMediaLib.SAS,nif_funcs,NULL,NULL,upgrade,NULL)

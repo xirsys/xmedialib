@@ -168,4 +168,4 @@ static ErlNifFunc nif_funcs[] =
 	    {"crc32c", 1, crc32c}
 };
 
-ERL_NIF_INIT(crc32c,nif_funcs,NULL,NULL,upgrade,NULL)
+ERL_NIF_INIT(Elixir.XMediaLib.CRC32C,nif_funcs,NULL,NULL,upgrade,NULL)
