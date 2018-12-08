@@ -6,8 +6,6 @@ defmodule XMediaLib.SrtpTest do
 
   @master_key <<0xE1F97A0D3E018BE0D64FA32C06DE4139::size(128)>>
   @master_salt <<0x0EC675AD498AFEEBB6960B3AABE6::size(112)>>
-  # 0x806e5cba50681de55c621599
-  @header <<128, 110, 92, 186, 80, 104, 29, 229, 92, 98, 21, 153>>
   # 70736575646f72616e646f6d6e657373 20697320746865206e65787420626573 74207468696e67
   @payload <<"pseudorandomness is the next best thing">>
   @encrypted_payload <<199, 114, 106, 144, 88, 86, 211, 227, 9, 159, 237, 135, 145, 51, 120, 85,
@@ -76,7 +74,6 @@ defmodule XMediaLib.SrtpTest do
   @session_salt <<0xF0F1F2F3F4F5F6F7F8F9FAFBFCFD::size(112)>>
   # Sequence Number
   @index 0
-  @ssrc 0
   @label Srtp.srtp_label_rtp_encr()
   @key_derivation_rate 0
 
@@ -103,7 +100,6 @@ defmodule XMediaLib.SrtpTest do
   end
 
   # See RFC 3711 B.3
-  @mster_key <<0xE1F97A0D3E018BE0D64FA32C06DE4139::size(128)>>
   @master_salt <<0x0EC675AD498AFEEBB6960B3AABE6::size(112)>>
 
   @cipher0 <<0xC61E7A93744F39EE10734AFE3FF7A087::size(128)>>
