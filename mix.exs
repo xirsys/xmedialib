@@ -6,7 +6,7 @@ defmodule XMediaLib.Mixfile do
       app: :xmedialib,
       version: "0.1.0",
       elixir: "~> 1.0",
-      compilers: [:elixir_make] ++ Mix.compilers,
+      compilers: [:elixir_make] ++ Mix.compilers(),
       package: package(),
       deps_path: "deps",
       lockfile: "mix.lock",

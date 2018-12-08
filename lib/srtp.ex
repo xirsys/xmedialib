@@ -246,8 +246,8 @@ defmodule XMediaLib.Srtp do
       when 64 <= payload_type and payload_type <= 82 do
     size = byte_size(data) - (tag_length + 8 + 4)
 
-    <<header::binary-size(8), encrypted_payload::binary-size(size), _e::size(1), _index::size(31)>> =
-      check_auth(data, <<>>, aalg, key_a, tag_length)
+    <<header::binary-size(8), encrypted_payload::binary-size(size), _e::size(1),
+      _index::size(31)>> = check_auth(data, <<>>, aalg, key_a, tag_length)
 
     decrypted_payload =
       decrypt_payload(
