@@ -447,7 +447,6 @@ defmodule XMediaLib.Stun do
         ^fingerprint = :crypto.hmac(:sha, key, message)
         <<h::size(16), old_size::size(16), payload::binary>> = message
         new_size = old_size - 24
-        Logger.info("INTEGRITY FOUND")
         {true, <<h::size(16), new_size::size(16), payload::binary>>}
 
       _ ->
