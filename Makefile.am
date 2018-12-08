@@ -1,7 +1,7 @@
 SUBDIRS = c_src
+ACLOCAL_AMFLAGS = -I m4
 
 all:
-  ACLOCAL_AMFLAGS = -I m4
 	$(mkdir_p) ./priv/
 	$(install_sh_PROGRAM) c_src/.libs/*.so ./priv/
 	@VSN="@PACKAGE_VERSION@" $(REBAR) get-deps
