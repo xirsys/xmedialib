@@ -746,7 +746,7 @@ defmodule XMediaLib.Rtcp do
   #################################
 
   def encode(%Rtcp{payloads: list, encrypted: nil}) when is_list(list),
-    do: for(<<x <- list>>, into: "", do: <<encode(x)::binary>>)
+    do: for(x <- list, into: "", do: <<encode(x)::binary>>)
 
   def encode(%Rtcp{encrypted: bin}) when is_binary(bin), do: bin
 
@@ -887,7 +887,7 @@ defmodule XMediaLib.Rtcp do
 
   def encode_sdes(sdes_items_list) when is_list(sdes_items_list) do
     rc = length(sdes_items_list)
-    sdes_data = for <<x <- sdes_items_list>>, into: "", do: <<encode_sdes_items(x)::binary>>
+    sdes_data = for x <- sdes_items_list, into: "", do: <<encode_sdes_items(x)::binary>>
     length = div(byte_size(sdes_data), 4)
 
     # TODO ensure that this list is null-terminated and no null-terminator
@@ -897,7 +897,7 @@ defmodule XMediaLib.Rtcp do
   end
 
   def encode_bye(ssrcs_list, []) when is_list(ssrcs_list) do
-    ssrcs = for <<s <- ssrcs_list>>, into: "", do: <<s::size(32)>>
+    ssrcs = for s <- ssrcs_list, into: "", do: <<s::size(32)>>
     sc = div(byte_size(ssrcs), 4)
 
     <<@rtcp_version::size(2), @padding_no::size(1), sc::size(5), @rtcp_bye::size(8), sc::size(16),
@@ -906,7 +906,7 @@ defmodule XMediaLib.Rtcp do
 
   def encode_bye(ssrcs_list, message_list) when is_list(ssrcs_list) and is_list(message_list) do
     message = to_string(message_list)
-    ssrcs = for <<s <- ssrcs_list>>, into: "", do: <<s::size(32)>>
+    ssrcs = for s <- ssrcs_list, into: "", do: <<s::size(32)>>
     sc = div(byte_size(ssrcs), 4)
     # FIXME no more than 255 symbols
     text_length = byte_size(message)
@@ -953,7 +953,7 @@ defmodule XMediaLib.Rtcp do
   end
 
   def encode_rblocks(rblocks) when is_list(rblocks),
-    do: for(<<rblock <- rblocks>>, into: "", do: <<encode_rblock(rblock)::binary>>)
+    do: for(rblock <- rblocks, into: "", do: <<encode_rblock(rblock)::binary>>)
 
   # * SSRC - SSRC of the source
   # * FL - fraction lost
@@ -1032,7 +1032,7 @@ defmodule XMediaLib.Rtcp do
   end
 
   def encode_xrblocks(xrblocks) when is_list(xrblocks),
-    do: for(<<xrblock <- xrblocks>>, into: "", do: <<encode_xrblock(xrblock)::binary>>)
+    do: for(xrblock <- xrblocks, into: "", do: <<encode_xrblock(xrblock)::binary>>)
 
   def encode_xrblock(%Xrblock{type: bt, ts: ts, data: data}), do: encode_xrblock(bt, ts, data)
 
