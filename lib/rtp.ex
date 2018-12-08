@@ -87,36 +87,36 @@ defmodule XMediaLib.Rtp do
   # http://www.ietf.org/rfc/rfc4587.txt
   # http://www.cisco.com/en/US/tech/tk652/tk698/technologies_tech_note09186a0080094ae2.shtml
 
-  # @rtp_payload_pcmu 0
-  # @rtp_payload_gsm 3
-  # @rtp_payload_g723 4
-  # @rtp_payload_dvi4_8khz 5
-  # @rtp_payload_dvi4_16khz 6
-  # @rtp_payload_lpc 7
-  # @rtp_payload_pcma 8
-  # @rtp_payload_g722 9
-  # @rtp_payload_l16_2ch 10
-  # @rtp_payload_l16_1ch 11
-  # @rtp_payload_qcelp 12
+  def rtp_payload_pcmu(), do: 0
+  def rtp_payload_gsm(), do: 3
+  def rtp_payload_g723(), do: 4
+  def rtp_payload_dvi4_8khz(), do: 5
+  def rtp_payload_dvi4_16khz(), do: 6
+  def rtp_payload_lpc(), do: 7
+  def rtp_payload_pcma(), do: 8
+  def rtp_payload_g722(), do: 9
+  def rtp_payload_l16_2ch(), do: 10
+  def rtp_payload_l16_1ch(), do: 11
+  def rtp_payload_qcelp(), do: 12
   # RFC 3389
-  # @rtp_payload_cn 13
-  # @rtp_payload_mpa 14
-  # @rtp_payload_g728 15
-  # @rtp_payload_dvi4_11khz 16
-  # @rtp_payload_dvi4_22khz 17
-  # @rtp_payload_g729 18
+  def rtp_payload_cn(), do: 13
+  def rtp_payload_mpa(), do: 14
+  def rtp_payload_g728(), do: 15
+  def rtp_payload_dvi4_11khz(), do: 16
+  def rtp_payload_dvi4_22khz(), do: 17
+  def rtp_payload_g729(), do: 18
   # RFC 2029
-  # @rtp_payload_celb 25
+  def rtp_payload_celb(), do: 25
   # RFC 2435
-  # @rtp_payload_jpeg 26
-  # @rtp_payload_nv 28
+  def rtp_payload_jpeg(), do: 26
+  def rtp_payload_nv(), do: 28
   # RFC 4587
-  # @rtp_payload_h261 31
+  def rtp_payload_h261(), do: 31
   # RFC 2250
-  # @rtp_payload_mpv 32
+  def rtp_payload_mpv(), do: 32
   # RFC 2250
-  # @rtp_payload_mp2t 33
-  # @rtp_payload_h263 34
+  def rtp_payload_mp2t(), do: 33
+  def rtp_payload_h263(), do: 34
 
   # FIXME move to the header?
   @mbz 0
@@ -299,7 +299,7 @@ defmodule XMediaLib.Rtp do
       })
       when is_binary(payload) do
     cc = length(csrcs)
-    csrc_data = for <<csrc <- csrcs>>, into: "", do: <<csrc::size(32)>>
+    csrc_data = for csrc <- csrcs, into: "", do: <<csrc::size(32)>>
     {extension_flag, extension_data} = encode_extension(x)
 
     <<@rtp_version::size(2), p::size(1), extension_flag::size(1), cc::size(4), m::size(1),

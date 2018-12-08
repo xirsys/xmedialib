@@ -64,11 +64,11 @@ defmodule XMediaLib.Srtp do
 
   # @srtp_block_size 16
 
-  @srtp_label_rtp_encr 0x0
-  @srtp_label_rtp_auth 0x1
-  @srtp_label_rtp_salt 0x2
+  def srtp_label_rtp_encr(), do: 0x0
+  def srtp_label_rtp_auth(), do: 0x1
+  def srtp_label_rtp_salt(), do: 0x2
 
-  @srtp_label_rtcp_encr 0x3
+  def srtp_label_rtcp_encr(), do: 0x3
   # @srtp_label_rtcp_auth 0x4
   # @srtp_label_rtcp_salt 0x5
 
@@ -77,25 +77,25 @@ defmodule XMediaLib.Srtp do
 
   def new_ctx(ssrc, ealg, aalg, master_key, master_salt, tag_length, key_derivation_rate) do
     <<k_s::size(112), _::binary>> =
-      derive_key(master_key, master_salt, @srtp_label_rtp_salt, 0, key_derivation_rate)
+      derive_key(master_key, master_salt, srtp_label_rtp_salt(), 0, key_derivation_rate)
 
     %Srtp_Crypto_Ctx{
       ssrc: ssrc,
       aalg: aalg,
       ealg: ealg,
       key_deriv_rate: key_derivation_rate,
-      k_a: derive_key(master_key, master_salt, @srtp_label_rtp_auth, 0, key_derivation_rate),
-      k_e: derive_key(master_key, master_salt, @srtp_label_rtp_encr, 0, key_derivation_rate),
+      k_a: derive_key(master_key, master_salt, srtp_label_rtp_auth(), 0, key_derivation_rate),
+      k_e: derive_key(master_key, master_salt, srtp_label_rtp_encr(), 0, key_derivation_rate),
       k_s: <<k_s::size(112)>>,
       tag_length: tag_length
     }
   end
 
-  def encrypt(%Rtp{} = rtp, passthru),
-    do: {:ok, Rtp.encode(rtp), passthru}
+  def encrypt(%Rtp{} = rtp, :passthru),
+    do: {:ok, Rtp.encode(rtp), :passthru}
 
-  def encrypt(%Rtcp{encrypted: data} = _rctp, passthru),
-    do: {:ok, data, passthru}
+  def encrypt(%Rtcp{encrypted: data} = _rctp, :passthru),
+    do: {:ok, data, :passthru}
 
   def encrypt(
         %Rtp{sequence_number: sequence_number, ssrc: ssrc, payload: payload} = rtp,
@@ -121,7 +121,7 @@ defmodule XMediaLib.Srtp do
         key_e,
         salt,
         key_derivation_rate,
-        @srtp_label_rtp_encr
+        srtp_label_rtp_encr()
       )
 
     {:ok,
@@ -159,7 +159,7 @@ defmodule XMediaLib.Srtp do
         key_e,
         salt,
         key_derivation_rate,
-        @srtp_label_rtcp_encr
+        srtp_label_rtcp_encr()
       )
 
     {:ok,
@@ -174,19 +174,19 @@ defmodule XMediaLib.Srtp do
 
   def decrypt(
         <<@rtp_version::size(2), _::size(7), payload_type::size(7), _rest::binary>> = data,
-        passthru
+        :passthru
       )
       when payload_type <= 34 or 96 <= payload_type do
     {:ok, rtp} = Rtp.decode(data)
-    {:ok, rtp, passthru}
+    {:ok, rtp, :passthru}
   end
 
   def decrypt(
         <<@rtp_version::size(2), _::size(7), payload_type::size(7), _rest::binary>> = data,
-        passthru
+        :passthru
       )
       when 64 <= payload_type and payload_type <= 82,
-      do: {:ok, %Rtcp{encrypted: data}, passthru}
+      do: {:ok, %Rtcp{encrypted: data}, :passthru}
 
   def decrypt(%Rtp{} = rtp, ctx),
     do: decrypt(Rtp.encode(rtp), ctx)
@@ -220,7 +220,7 @@ defmodule XMediaLib.Srtp do
         key_e,
         salt,
         key_derivation_rate,
-        @srtp_label_rtp_encr
+        srtp_label_rtp_encr()
       )
 
     {:ok, rtp} = Rtp.decode(<<header::binary-size(12), decrypted_payload::binary>>)
@@ -258,7 +258,7 @@ defmodule XMediaLib.Srtp do
         key_e,
         salt,
         key_derivation_rate,
-        @srtp_label_rtcp_encr
+        srtp_label_rtcp_encr()
       )
 
     {:ok, rtcp} = Rtp.decode(<<header::binary-size(8), decrypted_payload::binary>>)
