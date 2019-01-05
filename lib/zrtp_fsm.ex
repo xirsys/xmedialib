@@ -1003,31 +1003,31 @@ defmodule XMediaLib.ZrtpFsm do
     item
   end
 
-  #################################
-  ###
-  ### Various helpers
-  ###
-  #################################
+  def verify_hmac(%Zrtp{message: %Hello{zid: _zid, mac: mac} = msg} = _packet, h2),
+    do: ZrtpCrypto.verify_hmac(msg, mac, h2)
 
-  defp calculate_hvi(%Hello{} = hello, %DHPart2{} = dhpart2, hash_fun) do
+  def verify_hmac(%Zrtp{message: %Commit{mac: mac} = msg} = _packet, h1),
+    do: ZrtpCrypto.verify_hmac(msg, mac, h1)
+
+  def verify_hmac(%Zrtp{message: %DHPart1{mac: mac} = msg} = _packet, h0),
+    do: ZrtpCrypto.verify_hmac(msg, mac, h0)
+
+  def verify_hmac(%Zrtp{message: %DHPart2{mac: mac} = msg} = _packet, h0),
+    do: ZrtpCrypto.verify_hmac(msg, mac, h0)
+
+  def verify_hmac(_, _), do: false
+
+  def calculate_hvi(%Hello{} = hello, %DHPart2{} = dhpart2, hash_fun) do
     hello_bin = Zrtp.encode_message(hello)
     dhpart2_bin = Zrtp.encode_message(dhpart2)
     hash_fun.(<<dhpart2_bin::binary, hello_bin::binary>>)
   end
 
-  defp verify_hmac(%Zrtp{message: %Hello{zid: _zid, mac: mac} = msg} = _packet, h2),
-    do: ZrtpCrypto.verify_hmac(msg, mac, h2)
-
-  defp verify_hmac(%Zrtp{message: %Commit{mac: mac} = msg} = _packet, h1),
-    do: ZrtpCrypto.verify_hmac(msg, mac, h1)
-
-  defp verify_hmac(%Zrtp{message: %DHPart1{mac: mac} = msg} = _packet, h0),
-    do: ZrtpCrypto.verify_hmac(msg, mac, h0)
-
-  defp verify_hmac(%Zrtp{message: %DHPart2{mac: mac} = msg} = _packet, h0),
-    do: ZrtpCrypto.verify_hmac(msg, mac, h0)
-
-  defp verify_hmac(_, _), do: false
+  #################################
+  ###
+  ### Various helpers
+  ###
+  #################################
 
   defp mkdhpart1(h0, h1, rs1_idr, rs2_idr, auxsecretidr, pbxsecretidr, public_key) do
     # <<i::32, pvr::binary>> = public_key
