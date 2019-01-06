@@ -26,7 +26,7 @@ CRC_LIB_NAME = priv/crc32c_nif.so
 SAS_LIB_NAME = priv/sas_nif.so
 RS_LIB_NAME = priv/resampler_drv.so
 
-all: clean $(CRC_LIB_NAME) $(SAS_LIB_NAME) $(RS_LIB_NAME)
+all: $(CRC_LIB_NAME) $(SAS_LIB_NAME) $(RS_LIB_NAME)
 
 $(CRC_LIB_NAME): $(CRC_NIF_SRC)
 	mkdir -p priv
