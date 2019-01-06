@@ -3,6 +3,9 @@ CFLAGS = -g -O3 -Wall
 ERLANG_PATH = $(shell erl -eval 'io:format("~s", [lists:concat([code:root_dir(), "/erts-", erlang:system_info(version), "/include"])])' -s init stop -noshell)
 CFLAGS += -I$(ERLANG_PATH)
 CFLAGS += -Ic_src
+LDFLAGS += -L/usr/local/lib:/usr/lib
+SAMPLERATE = -lsamplerate
+SPANDSP = -lspandsp -ltiff -lm
 
 ifneq ($(CROSSCOMPILE),)
     # crosscompiling
@@ -21,12 +24,14 @@ endif
 CRC_NIF_SRC = c_src/crc32c_nif.c
 SAS_NIF_SRC = c_src/sas_nif.c
 RS_DRV_SRC = c_src/resampler.c
+G722_CDC_SRC = c_src/g722_codec.c
 
 CRC_LIB_NAME = priv/crc32c_nif.so
 SAS_LIB_NAME = priv/sas_nif.so
 RS_LIB_NAME = priv/resampler_drv.so
+G722_LIB_NAME = priv/g722_codec_drv.so
 
-all: $(CRC_LIB_NAME) $(SAS_LIB_NAME) $(RS_LIB_NAME)
+all: clean $(CRC_LIB_NAME) $(SAS_LIB_NAME) $(RS_LIB_NAME) $(G722_LIB_NAME)
 
 $(CRC_LIB_NAME): $(CRC_NIF_SRC)
 	mkdir -p priv
@@ -38,11 +43,16 @@ $(SAS_LIB_NAME): $(SAS_NIF_SRC)
 
 $(RS_LIB_NAME): $(RS_DRV_SRC)
 	mkdir -p priv
-	-$(CC) $(CFLAGS) -shared $(LDFLAGS) $^ -o $@
+	-$(CC) $(CFLAGS) -shared $(LDFLAGS) $^ -o $@ $(SAMPLERATE)
+
+$(G722_LIB_NAME): $(G722_CDC_SRC)
+	mkdir -p priv
+	-$(CC) $(CFLAGS) -shared $(LDFLAGS) $^ -o $@ $(SPANDSP)
 
 clean:
 	rm -f $(CRC_LIB_NAME)
 	rm -f $(SAS_LIB_NAME)
-	rm -f $(RTP_LIB_NAME)
+	rm -f $(RS_LIB_NAME)
+	rm -f $(G722_LIB_NAME)
 
 .PHONY: all clean

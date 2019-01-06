@@ -17,30 +17,30 @@ defmodule XMediaLib.Codec do
   def is_supported(v),
     do:
       v in [
-        {:GSM, 8000, 1},
-        {:DVI4, 8000, 1},
-        {:DVI4, 16000, 1},
-        {:PCMA, 8000, 1},
-        {:G722, 8000, 1},
-        {:G726, 8000, 1},
-        {:G729, 8000, 1},
-        {:LPC, 8000, 1},
-        {:DVI4, 11025, 1},
-        {:DVI4, 22050, 1},
-        {:SPEEX, 8000, 1},
-        {:SPEEX, 16000, 1},
-        {:SPEEX, 32000, 1},
-        {:ILBC, 8000, 1},
-        {:OPUS, 8000, 1},
-        {:OPUS, 8000, 2},
-        {:OPUS, 12000, 1},
-        {:OPUS, 12000, 2},
-        {:OPUS, 16000, 1},
-        {:OPUS, 16000, 2},
-        {:OPUS, 24000, 1},
-        {:OPUS, 24000, 2},
-        {:OPUS, 48000, 1},
-        {:OPUS, 48000, 2}
+        {'GSM', 8000, 1},
+        {'DVI4', 8000, 1},
+        {'DVI4', 16000, 1},
+        {'PCMA', 8000, 1},
+        {'G722', 8000, 1},
+        {'G726', 8000, 1},
+        {'G729', 8000, 1},
+        {'LPC', 8000, 1},
+        {'DVI4', 11025, 1},
+        {'DVI4', 22050, 1},
+        {'SPEEX', 8000, 1},
+        {'SPEEX', 16000, 1},
+        {'SPEEX', 32000, 1},
+        {'ILBC', 8000, 1},
+        {'OPUS', 8000, 1},
+        {'OPUS', 8000, 2},
+        {'OPUS', 12000, 1},
+        {'OPUS', 12000, 2},
+        {'OPUS', 16000, 1},
+        {'OPUS', 16000, 2},
+        {'OPUS', 24000, 1},
+        {'OPUS', 24000, 2},
+        {'OPUS', 48000, 1},
+        {'OPUS', 48000, 2}
       ]
 
   def start_link(c) when is_integer(c) do
@@ -60,20 +60,21 @@ defmodule XMediaLib.Codec do
   def init({format, sample_rate, channels}) do
     driver_name =
       case format do
-        :PCMU -> :pcmu_codec_drv
-        :GSM -> :gsm_codec_drv
-        :DVI4 -> :dvi4_codec_drv
-        :PCMA -> :pcma_codec_drv
-        :G722 -> :g722_codec_drv
-        :G726 -> :g726_codec_drv
-        :G729 -> :g729_codec_drv
-        :LPC -> :lpc_codec_drv
-        :SPEEX -> :speex_codec_drv
-        :ILBC -> :ilbc_codec_drv
-        :OPUS -> :opus_codec_drv
+        'PCMU' -> :pcmu_codec_drv
+        'GSM' -> :gsm_codec_drv
+        'DVI4' -> :dvi4_codec_drv
+        'PCMA' -> :pcma_codec_drv
+        'G722' -> :g722_codec_drv
+        'G726' -> :g726_codec_drv
+        'G729' -> :g729_codec_drv
+        'LPC' -> :lpc_codec_drv
+        'SPEEX' -> :speex_codec_drv
+        'ILBC' -> :ilbc_codec_drv
+        'OPUS' -> :opus_codec_drv
       end
 
     result =
+
       [load_library(driver_name), load_library(:resampler_drv)]
       |> Enum.reject(&(&1 == :ok))
 
@@ -216,7 +217,7 @@ defmodule XMediaLib.Codec do
 
   def encode(codec, {payload, sample_rate, channels, resolution})
       when is_pid(codec) and is_binary(payload),
-      do: GenServer.call(codec, {@cmd_decode, {payload, sample_rate, channels, resolution}})
+      do: GenServer.call(codec, {@cmd_encode, {payload, sample_rate, channels, resolution}})
 
   # Private functions
 
@@ -232,16 +233,16 @@ defmodule XMediaLib.Codec do
         :ok
 
       {:error, error} ->
-        :error_logger.error_msg("Can't load ~p library: ~s~n", [
-          name,
-          :erl_ddll.format_error(error)
-        ])
+        IO.puts """
+          Can't load #{name} library:
+          #{inspect :erl_ddll.format_error(error)}
+        """
 
         {:error, error}
     end
   end
 
-  defp get_priv(), do: "../priv"
+  defp get_priv(), do: "./priv"
 
   defp encode_binary(port, cmd, bin_in) do
     case :erlang.port_control(port, cmd, bin_in) do
