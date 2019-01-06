@@ -77,18 +77,16 @@ static ErlDrvData resampler_drv_start(ErlDrvPort port, char *buff)
 
 static void resampler_drv_stop(ErlDrvData handle)
 {
-	resampler_data *d = (resampler_data *) handle;
+	// resampler_data *d = (resampler_data *) handle;
 	driver_free((char*)handle);
 }
 
-static int resampler_drv_control(
+static ErlDrvSSizeT resampler_drv_control(
 		ErlDrvData handle,
 		unsigned int command,
-		char *buf, int len,
-		char **rbuf, int rlen)
+		char *buf, ErlDrvSizeT len,
+		char **rbuf, ErlDrvSizeT rlen)
 {
-	resampler_data* d = (resampler_data*)handle;
-
 	int ret = 0;
 	ErlDrvBinary *out;
 	*rbuf = NULL;
@@ -96,15 +94,15 @@ static int resampler_drv_control(
 	int from_samplerate = get_samplerate((command >> 24));
 	int from_channels = (command >> 16) & 0xFF;
 	int to_samplerate = get_samplerate((command >> 8) & 0xFF);
-	int to_channels = command & 0xFF;
 
 	int i = 0;
 	SRC_DATA data;
-	data.data_in  = (float*)calloc(len / 2, sizeof(float));
+	float* data_in  = (float*)calloc(len / 2, sizeof(float));
 	data.data_out = (float*)calloc(len * 8, sizeof(float));
 
 	for(i = 0; i < len / 2; i++)
-		data.data_in[i] = (float)((short*)buf)[i];
+		data_in[i] = (float)((short*)buf)[i];
+	data.data_in = data_in;
 
 	data.input_frames = len / 2;
 	data.output_frames = len * 8;
@@ -117,11 +115,11 @@ static int resampler_drv_control(
 	for(i = 0; i < data.output_frames_gen; i++)
 		*((short*)(out->orig_bytes) + i) = (short)floor(data.data_out[i] + 0.5);
 
-	free(data.data_in);
+	free(data_in);
 	free(data.data_out);
 
 	*rbuf = (char *)out;
-	ret = data.output_frames_gen * 2;
+	ret = (uint)data.output_frames_gen * 2;
 
 	return ret;
 }
@@ -129,7 +127,7 @@ static int resampler_drv_control(
 ErlDrvEntry resampler_driver_entry = {
 	NULL,			/* F_PTR init, N/A */
 	resampler_drv_start,	/* L_PTR start, called when port is opened */
-	resampler_drv_stop,	/* F_PTR stop, called when port is closed */
+	resampler_drv_stop,	  /* F_PTR stop, called when port is closed */
 	NULL,			/* F_PTR output, called when erlang has sent */
 	NULL,			/* F_PTR ready_input, called when input descriptor ready */
 	NULL,			/* F_PTR ready_output, called when output descriptor ready */

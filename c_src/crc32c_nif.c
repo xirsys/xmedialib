@@ -29,6 +29,7 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 #include "erl_nif.h"
 
 /* http://tools.ietf.org/html/draft-ietf-tsvwg-sctpcsum-01 */
@@ -122,7 +123,7 @@ static const uint32_t crc_c[256] = {
     0xBE2DA0A5, 0x4C4623A6, 0x5F16D052, 0xAD7D5351,
 };
 
-static int crc32c(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM crc32c(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
 //		char **rbuf, int rlen
 //

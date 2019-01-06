@@ -30,6 +30,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include "erl_nif.h"
 
 const char* sas256WordsOdd[] = {
@@ -552,7 +553,7 @@ const char* sas256WordsEven[] = {
 
 static const char b32_chars[] =  "ybndrfg8ejkmcpqxot1uwisza345h769";
 
-static int b32(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM b32(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
 	ErlNifBinary bin;
 	ErlNifBinary out;
@@ -579,7 +580,7 @@ static int b32(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 	return enif_make_binary(env, &out);
 }
 
-static int b256(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM b256(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
 	ErlNifBinary bin;
 	ErlNifBinary out;

@@ -20,11 +20,13 @@ endif
 
 CRC_NIF_SRC = c_src/crc32c_nif.c
 SAS_NIF_SRC = c_src/sas_nif.c
+RS_DRV_SRC = c_src/resampler.c
 
 CRC_LIB_NAME = priv/crc32c_nif.so
 SAS_LIB_NAME = priv/sas_nif.so
+RS_LIB_NAME = priv/resampler_drv.so
 
-all: $(CRC_LIB_NAME) $(SAS_LIB_NAME)
+all: clean $(CRC_LIB_NAME) $(SAS_LIB_NAME) $(RS_LIB_NAME)
 
 $(CRC_LIB_NAME): $(CRC_NIF_SRC)
 	mkdir -p priv
@@ -34,8 +36,13 @@ $(SAS_LIB_NAME): $(SAS_NIF_SRC)
 	mkdir -p priv
 	$(CC) $(CFLAGS) -shared $(LDFLAGS) $^ -o $@
 
+$(RS_LIB_NAME): $(RS_DRV_SRC)
+	mkdir -p priv
+	-$(CC) $(CFLAGS) -shared $(LDFLAGS) $^ -o $@
+
 clean:
 	rm -f $(CRC_LIB_NAME)
 	rm -f $(SAS_LIB_NAME)
+	rm -f $(RTP_LIB_NAME)
 
 .PHONY: all clean
