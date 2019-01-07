@@ -82,11 +82,11 @@ static void codec_drv_stop(ErlDrvData handle)
 //	closelog();
 }
 
-static int codec_drv_control(
+static ErlDrvSSizeT codec_drv_control(
 		ErlDrvData handle,
 		unsigned int command,
-		char *buf, int len,
-		char **rbuf, int rlen)
+		char *buf, ErlDrvSizeT len,
+		char **rbuf, ErlDrvSizeT rlen)
 {
 	codec_data* d = (codec_data*)handle;
 
@@ -94,7 +94,7 @@ static int codec_drv_control(
 	ErlDrvBinary *out;
 	*rbuf = NULL;
 
-	WebRtc_Word16 i = 1;
+	int16_t i = 1;
 
 //	syslog(LOG_USER | LOG_WARNING, "INIT: %d %d\n", command, len);
 
@@ -103,12 +103,12 @@ static int codec_drv_control(
 			switch(len){
 				case 320: // 20 msec
 					out = driver_alloc_binary(38);
-					ret = WebRtcIlbcfix_Encode(d->estate20, (WebRtc_Word16 *)buf, 160, (WebRtc_Word16 *)out->orig_bytes);
+					ret = WebRtcIlbcfix_Encode(d->estate20, (int16_t*)buf, 160, (int16_t*)out->orig_bytes);
 					*rbuf = (char *)out;
 					break;
 				case 480: // 30 msec
 					out = driver_alloc_binary(50);
-					ret = WebRtcIlbcfix_Encode(d->estate30, (WebRtc_Word16 *)buf, 240, (WebRtc_Word16 *)out->orig_bytes);
+					ret = WebRtcIlbcfix_Encode(d->estate30, (int16_t*)buf, 240, (int16_t*)out->orig_bytes);
 					*rbuf = (char *)out;
 					break;
 				default:
@@ -119,12 +119,12 @@ static int codec_drv_control(
 			switch(len){
 				case 38: // 20 msec
 					out = driver_alloc_binary(320);
-					ret = 2 * WebRtcIlbcfix_Decode(d->dstate20, (WebRtc_Word16*)buf, len, (WebRtc_Word16 *)out->orig_bytes, &i);
+					ret = 2 * WebRtcIlbcfix_Decode(d->dstate20, (int16_t*)buf, len, (int16_t*)out->orig_bytes, &i);
 					*rbuf = (char *)out;
 					break;
 				case 50: // 30 msec
 					out = driver_alloc_binary(480);
-					ret = 2 * WebRtcIlbcfix_Decode(d->dstate30, (WebRtc_Word16*)buf, len, (WebRtc_Word16 *)out->orig_bytes, &i);
+					ret = 2 * WebRtcIlbcfix_Decode(d->dstate30, (int16_t*)buf, len, (int16_t*)out->orig_bytes, &i);
 					*rbuf = (char *)out;
 					break;
 				default:
@@ -143,7 +143,7 @@ ErlDrvEntry codec_driver_entry = {
 	NULL,			/* F_PTR output, called when erlang has sent */
 	NULL,			/* F_PTR ready_input, called when input descriptor ready */
 	NULL,			/* F_PTR ready_output, called when output descriptor ready */
-	"ilbc_codec_drv",		/* char *driver_name, the argument to open_port */
+	(char*) "ilbc_codec_drv",		/* char *driver_name, the argument to open_port */
 	NULL,			/* F_PTR finish, called when unloaded */
 	NULL,			/* handle */
 	codec_drv_control,	/* F_PTR control, port_command callback */
@@ -153,9 +153,9 @@ ErlDrvEntry codec_driver_entry = {
 	NULL,
 	NULL,
 	NULL,
-	ERL_DRV_EXTENDED_MARKER,
-	ERL_DRV_EXTENDED_MAJOR_VERSION,
-	ERL_DRV_EXTENDED_MINOR_VERSION,
+	(int) ERL_DRV_EXTENDED_MARKER,
+	(int) ERL_DRV_EXTENDED_MAJOR_VERSION,
+	(int) ERL_DRV_EXTENDED_MINOR_VERSION,
 	0,
 	NULL,
 	NULL,
