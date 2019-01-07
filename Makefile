@@ -28,6 +28,7 @@ RS_DRV_SRC = c_src/resampler.c
 G722_CDC_SRC = c_src/g722_codec.c
 G726_CDC_SRC = c_src/g726_codec.c
 G729_CDC_SRC = c_src/g729_codec.c
+GSM_CDC_SRC = c_src/gsm_codec.c
 
 CRC_LIB_NAME = priv/crc32c_nif.so
 SAS_LIB_NAME = priv/sas_nif.so
@@ -35,8 +36,9 @@ RS_LIB_NAME = priv/resampler_drv.so
 G722_LIB_NAME = priv/g722_codec_drv.so
 G726_LIB_NAME = priv/g726_codec_drv.so
 G729_LIB_NAME = priv/g729_codec_drv.so
+GSM_LIB_NAME = priv/gsm_codec_drv.so
 
-all: $(CRC_LIB_NAME) $(SAS_LIB_NAME) $(RS_LIB_NAME) $(G722_LIB_NAME) $(G726_LIB_NAME) $(G729_LIB_NAME)
+all: $(CRC_LIB_NAME) $(SAS_LIB_NAME) $(RS_LIB_NAME) $(G722_LIB_NAME) $(G726_LIB_NAME) $(G729_LIB_NAME) $(GSM_LIB_NAME)
 
 $(CRC_LIB_NAME): $(CRC_NIF_SRC)
 	mkdir -p priv
@@ -62,6 +64,10 @@ $(G729_LIB_NAME): $(G729_CDC_SRC)
 	mkdir -p priv
 	-$(CC) $(CFLAGS) -shared $(LDFLAGS) $^ -o $@ $(BCG)
 
+$(GSM_LIB_NAME): $(GSM_CDC_SRC)
+	mkdir -p priv
+	-$(CC) $(CFLAGS) -shared $(LDFLAGS) $^ -o $@ $(SPANDSP)
+
 clean:
 	rm -f $(CRC_LIB_NAME)
 	rm -f $(SAS_LIB_NAME)
@@ -69,5 +75,6 @@ clean:
 	rm -f $(G722_LIB_NAME)
 	rm -f $(G726_LIB_NAME)
 	rm -f $(G729_LIB_NAME)
+	rm -f $(GSM_LIB_NAME)
 
 .PHONY: all clean
