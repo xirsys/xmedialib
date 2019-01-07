@@ -74,7 +74,6 @@ defmodule XMediaLib.Codec do
       end
 
     result =
-
       [load_library(driver_name), load_library(:resampler_drv)]
       |> Enum.reject(&(&1 == :ok))
 
@@ -233,10 +232,10 @@ defmodule XMediaLib.Codec do
         :ok
 
       {:error, error} ->
-        IO.puts """
+        IO.puts("""
           Can't load #{name} library:
-          #{inspect :erl_ddll.format_error(error)}
-        """
+          #{inspect(:erl_ddll.format_error(error))}
+        """)
 
         {:error, error}
     end

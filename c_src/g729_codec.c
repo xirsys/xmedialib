@@ -50,7 +50,7 @@ static ErlDrvData codec_drv_start(ErlDrvPort port, char *buff)
 {
 	codec_data* d = (codec_data*)driver_alloc(sizeof(codec_data));
 	d->port = port;
-	d->estate = initBcg729EncoderChannel();
+	d->estate = initBcg729EncoderChannel(0);
 	d->dstate = initBcg729DecoderChannel();
 	set_port_control_flags(port, PORT_CONTROL_FLAG_BINARY);
 	return (ErlDrvData)d;
@@ -64,11 +64,11 @@ static void codec_drv_stop(ErlDrvData handle)
 	driver_free((char*)handle);
 }
 
-static int codec_drv_control(
+static ErlDrvSSizeT codec_drv_control(
 		ErlDrvData handle,
 		unsigned int command,
-		char *buf, int len,
-		char **rbuf, int rlen)
+		char *buf, ErlDrvSizeT len,
+		char **rbuf, ErlDrvSizeT rlen)
 {
 	codec_data* d = (codec_data*)handle;
 
@@ -89,26 +89,26 @@ static int codec_drv_control(
 			out = driver_alloc_binary(n*10); // n*80 bits
 			ret = n*10;
 
+			uint8_t buf_len;
+
 			for(i = 0; i<n; i++)
-				bcg729Encoder(d->estate, (int16_t*)buf+80*i, (uint8_t*)out->orig_bytes+10*i);
+				bcg729Encoder(d->estate, (int16_t*)buf+80*i, (uint8_t*)out->orig_bytes+10*i, &buf_len);
 
 			*rbuf = (char *) out;
 			break;
-		 case CMD_DECODE:
-			if (len % 10 != 0)
-				break;
-
+		case CMD_DECODE:
 			n = len / 10; // Calculate a number of frames
 
 			out = driver_alloc_binary(n*160); // n*160 bytes
 			ret = n*160;
 
 			for(i = 0; i<n; i++)
-				bcg729Decoder(d->dstate, ((uint8_t*)buf)+10*i, 0, (int16_t*)out->orig_bytes+80*i);
+				// bcg729Decoder(d->dstate, ((uint8_t*)buf)+10*i, 0, (int16_t*)out->orig_bytes+80*i);
+				bcg729Decoder(d->dstate, ((uint8_t*)buf)+10*i, len, 0, 0, 0, (int16_t*)out->orig_bytes+80*i);
 
 			*rbuf = (char *) out;
 			break;
-		 default:
+		default:
 			break;
 	}
 	return ret;
@@ -121,7 +121,7 @@ ErlDrvEntry codec_driver_entry = {
 	NULL,			/* F_PTR output, called when erlang has sent */
 	NULL,			/* F_PTR ready_input, called when input descriptor ready */
 	NULL,			/* F_PTR ready_output, called when output descriptor ready */
-	"g729_codec_drv",		/* char *driver_name, the argument to open_port */
+	(char*) "g729_codec_drv",		/* char *driver_name, the argument to open_port */
 	NULL,			/* F_PTR finish, called when unloaded */
 	NULL,			/* handle */
 	codec_drv_control,	/* F_PTR control, port_command callback */
@@ -131,9 +131,9 @@ ErlDrvEntry codec_driver_entry = {
 	NULL,
 	NULL,
 	NULL,
-	ERL_DRV_EXTENDED_MARKER,
-	ERL_DRV_EXTENDED_MAJOR_VERSION,
-	ERL_DRV_EXTENDED_MINOR_VERSION,
+	(int) ERL_DRV_EXTENDED_MARKER,
+	(int) ERL_DRV_EXTENDED_MAJOR_VERSION,
+	(int) ERL_DRV_EXTENDED_MINOR_VERSION,
 	0,
 	NULL,
 	NULL,
