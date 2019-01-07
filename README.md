@@ -20,13 +20,12 @@ In order to run all tests (and use all codec features), you will need to compile
 You can compile and install for *Ubutnu* with:
 
 ```
-# install libilbc-dev
-wget http://files.freeswitch.org/downloads/libs/ilbc-0.0.1.tar.gz
-tar -xzvf ilbc-0.0.1.tar.gz
-cd ilbc-0.0.1
-./bootstrap.sh
-./configure --enable-static --prefix=/usr
-make && sudo ake install
+# install libilbc
+wget https://github.com/TimothyGu/libilbc/releases/download/v2.0.2/libilbc-2.0.2.tar.gz
+tar -xzvf libilbc-2.0.2.tar.gz
+cd libilbc-2.0.2
+./configure
+make && sudo make install
 
 # install bcg729
 git clone git@github.com:BelledonneCommunications/bcg729.git
