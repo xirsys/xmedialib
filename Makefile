@@ -3,11 +3,13 @@ CFLAGS = -g -O3 -Wall
 ERLANG_PATH = $(shell erl -eval 'io:format("~s", [lists:concat([code:root_dir(), "/erts-", erlang:system_info(version), "/include"])])' -s init stop -noshell)
 CFLAGS += -I$(ERLANG_PATH)
 CFLAGS += -Ic_src
+CFLAGS += -I/usr/include/opus
 LDFLAGS += -L/usr/local/lib:/usr/lib
 SAMPLERATE = -lsamplerate
 SPANDSP = -lspandsp -ltiff -lm
 BCG = -lbcg729
 ILBC = -lilbc
+OPUS = -lopus
 
 ifneq ($(CROSSCOMPILE),)
     # crosscompiling
@@ -32,6 +34,7 @@ G729_CDC_SRC = c_src/g729_codec.c
 GSM_CDC_SRC = c_src/gsm_codec.c
 ILBC_CDC_SRC = c_src/ilbc_codec.c
 LPC_CDC_SRC = c_src/lpc_codec.c
+OPUS_CDC_SRC = c_src/opus_codec.c
 
 CRC_LIB_NAME = priv/crc32c_nif.so
 SAS_LIB_NAME = priv/sas_nif.so
@@ -41,8 +44,9 @@ G726_LIB_NAME = priv/g726_codec_drv.so
 G729_LIB_NAME = priv/g729_codec_drv.so
 ILBC_LIB_NAME = priv/ilbc_codec_drv.so
 LPC_LIB_NAME = priv/lpc_codec_drv.so
+OPUS_LIB_NAME = priv/opus_codec_drv.so
 
-all: $(CRC_LIB_NAME) $(SAS_LIB_NAME) $(RS_LIB_NAME) $(G722_LIB_NAME) $(G726_LIB_NAME) $(G729_LIB_NAME) $(GSM_LIB_NAME) $(ILBC_LIB_NAME) $(LPC_LIB_NAME)
+all: $(CRC_LIB_NAME) $(SAS_LIB_NAME) $(RS_LIB_NAME) $(G722_LIB_NAME) $(G726_LIB_NAME) $(G729_LIB_NAME) $(GSM_LIB_NAME) $(ILBC_LIB_NAME) $(LPC_LIB_NAME) $(OPUS_LIB_NAME)
 
 $(CRC_LIB_NAME): $(CRC_NIF_SRC)
 	mkdir -p priv
@@ -80,6 +84,10 @@ $(LPC_LIB_NAME): $(LPC_CDC_SRC)
 	mkdir -p priv
 	-$(CC) $(CFLAGS) -shared $(LDFLAGS) $^ -o $@ $(SPANDSP)
 
+$(OPUS_LIB_NAME): $(OPUS_CDC_SRC)
+	mkdir -p priv
+	-$(CC) $(CFLAGS) -shared $(LDFLAGS) $^ -o $@ $(OPUS)
+
 clean:
 	rm -f $(CRC_LIB_NAME)
 	rm -f $(SAS_LIB_NAME)
@@ -90,5 +98,6 @@ clean:
 	rm -f $(GSM_LIB_NAME)
 	rm -f $(ILBC_LIB_NAME)
 	rm -f $(LPC_LIB_NAME)
+	rm -f $(OPUS_LIB_NAME)
 
 .PHONY: all clean
