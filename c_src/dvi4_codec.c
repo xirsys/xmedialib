@@ -61,11 +61,11 @@ static void codec_drv_stop(ErlDrvData handle)
 	driver_free((char*)handle);
 }
 
-static int codec_drv_control(
+static ErlDrvSSizeT codec_drv_control(
 		ErlDrvData handle,
 		unsigned int command,
-		char *buf, int len,
-		char **rbuf, int rlen)
+		char *buf, ErlDrvSizeT len,
+		char **rbuf, ErlDrvSizeT rlen)
 {
 	codec_data* d = (codec_data*)handle;
 
