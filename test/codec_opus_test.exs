@@ -50,7 +50,7 @@ defmodule XMediaLib.CodecOpusTest do
     assert decode("test/samples/opus/testvector12.bit", "test/samples/opus/testvector12.dec")
   end
 
-  def decode(file_in, file_out) do
+  defp decode(file_in, file_out) do
     {:ok, bin_in}  = File.read(file_in)
     {:ok, pcm_out} = File.read(file_out)
     {:ok, codec} = Codec.start_link({'OPUS', 48000, 2})
@@ -59,9 +59,9 @@ defmodule XMediaLib.CodecOpusTest do
     ret
   end
 
-  def decode(_name, _codec, <<>>, <<>>), do:
+  defp decode(_name, _codec, <<>>, <<>>), do:
     true
-  def decode(name, codec, <<frame_size_a::big-integer-size(32), _final_range::big-integer-size(32), rest::binary>> = _a, b) do
+  defp decode(name, codec, <<frame_size_a::big-integer-size(32), _final_range::big-integer-size(32), rest::binary>> = _a, b) do
     <<frame_a::binary-size(frame_size_a), rest_a::binary>> = rest
     {:ok, {frame_b, _, _, _}} = Codec.decode(codec, frame_a)
     frame_size_b = byte_size(frame_b)

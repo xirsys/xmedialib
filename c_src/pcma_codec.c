@@ -60,14 +60,13 @@ static void codec_drv_stop(ErlDrvData handle)
 	driver_free((char*)handle);
 }
 
-static int codec_drv_control(
+static ErlDrvSSizeT codec_drv_control(
 		ErlDrvData handle,
 		unsigned int command,
-		char *buf, int len,
-		char **rbuf, int rlen)
+		char *buf, ErlDrvSizeT len,
+		char **rbuf, ErlDrvSizeT rlen)
 {
 	int i;
-	int sample;
 	int ret = 0;
 	ErlDrvBinary *out;
 	*rbuf = NULL;
@@ -104,7 +103,7 @@ ErlDrvEntry codec_driver_entry = {
 	NULL,			/* F_PTR output, called when erlang has sent */
 	NULL,			/* F_PTR ready_input, called when input descriptor ready */
 	NULL,			/* F_PTR ready_output, called when output descriptor ready */
-	"pcma_codec_drv",		/* char *driver_name, the argument to open_port */
+	(char*) "pcma_codec_drv",		/* char *driver_name, the argument to open_port */
 	NULL,			/* F_PTR finish, called when unloaded */
 	NULL,			/* handle */
 	codec_drv_control,	/* F_PTR control, port_command callback */
@@ -114,9 +113,9 @@ ErlDrvEntry codec_driver_entry = {
 	NULL,
 	NULL,
 	NULL,
-	ERL_DRV_EXTENDED_MARKER,
-	ERL_DRV_EXTENDED_MAJOR_VERSION,
-	ERL_DRV_EXTENDED_MINOR_VERSION,
+	(int) ERL_DRV_EXTENDED_MARKER,
+	(int) ERL_DRV_EXTENDED_MAJOR_VERSION,
+	(int) ERL_DRV_EXTENDED_MINOR_VERSION,
 	0,
 	NULL,
 	NULL,
