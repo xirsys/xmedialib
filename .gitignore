@@ -21,3 +21,13 @@ erl_crash.dump
 
 # This library can run on Elixir 1.4.2 and up, but I use 1.6.6 for formatting
 .tool-versions
+
+# Build files (Ubuntu)
+c_src/*.la
+c_src/*.lo
+c_src/*.o
+c_src/.deps/
+c_src/.libs/
+c_src/Makefile
+c_src/Makefile.in
+priv/*.so

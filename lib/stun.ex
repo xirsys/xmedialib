@@ -36,19 +36,18 @@
 defmodule XMediaLib.Stun do
   use Bitwise
   require Logger
+  alias XMediaLib.Stun
 
   @moduledoc """
   The XMediaLib.Stun module provides the RFC 5389 implementation of the STUN protocol for both encoding and decoding.
   """
 
-  @doc """
-  Used by the STUN specification RFC 5389 to tag a packet as
-  specifically of a STUN format.
-  """
+  # Used by the STUN specification RFC 5389 to tag a packet as
+  # specifically of a STUN format.
   @stun_marker 0
   @stun_magic_cookie 0x2112A442
 
-  @moduledoc """
+  @doc """
   STUN object structure for per-connection usage
   """
   defstruct class: nil,
@@ -105,12 +104,12 @@ defmodule XMediaLib.Stun do
   stream as a response to the calling client.
   ## Example
         iex> response = %Stun{class: :success, method: :binding,
-        ...> transactionid: 123456789012, fingerprint: false, attrs: [
-        ...>   {:"XOR-MAPPED-ADDRESS", {{127,0,0,1}, 12345}},
-        ...>   {:"MAPPED-ADDRESS", {{127,0,0,1}, 12345}},
-        ...>   {:"SOURCE-ADDRESS", {{127,0,0,1}, 12346}},
-        ...>   {:"SOFTWARE", <<"XMediaLib-stun">>}
-        ...> ]}
+        ...> transactionid: 123456789012, fingerprint: false, attrs: %{
+        ...>   xor_mapped_address: {{127,0,0,1}, 12345},
+        ...>   mapped_address: {{127,0,0,1}, 12345},
+        ...>   source_address: {{127,0,0,1}, 12346},
+        ...>   software: <<"XMediaLib-stun">>
+        ...> }
         iex> XMediaLib.Stun.encode(response)
         <<1, 1, 0, 52, 33, 18, 164, 66, 0, 0, 0, 0, 0, 0, 0, 28, 190, 153,
         26, 20, 0, 32, 0, 8, 0, 1, 17, 43, 94, 18, 164, 67, 0, 1, 0, 8, 0,
@@ -118,7 +117,7 @@ defmodule XMediaLib.Stun do
         128, 34, 0, 11, 120, 105, 114, 115, 121, 115, 45, 115, 116, 117,
         110, 0>>
   """
-  def encode(%XMediaLib.Stun{} = config, nkey \\ nil) do
+  def encode(%XMediaLib.Stun{} = config) do
     # Logger.info "STUN_CONN #{inspect config}"
     m = get_method_id(config.method)
     <<m0::size(5), m1::size(3), m2::size(4)>> = <<m::size(12)>>
@@ -131,20 +130,11 @@ defmodule XMediaLib.Stun do
 
     length = byte_size(bin_attrs)
 
-    stun_binary_0 =
-      <<@stun_marker::size(2), m0::size(5), c0::size(1), m1::size(3), c1::size(1), m2::size(4),
-        length::16, @stun_magic_cookie::32, config.transactionid::96, bin_attrs::binary>>
-
-    stun_binary_1 =
-      case config.integrity do
-        false -> stun_binary_0
-        true -> insert_integrity(stun_binary_0, nkey)
-      end
-
-    case config.fingerprint do
-      false -> stun_binary_1
-      true -> insert_fingerprint(stun_binary_1)
-    end
+    <<@stun_marker::size(2), m0::size(5), c0::size(1), m1::size(3), c1::size(1), m2::size(4),
+      length::size(16), @stun_magic_cookie::size(32), config.transactionid::size(96),
+      bin_attrs::binary>>
+    |> maybe_insert_integrity(config)
+    |> maybe_insert_fingerprint(config)
   end
 
   # -------------------------------------------------------------------------------
@@ -155,12 +145,10 @@ defmodule XMediaLib.Stun do
   @external_resource methods_path = Path.join([__DIR__, "../priv/turn-methods.txt"])
   @external_resource classes_path = Path.join([__DIR__, "../priv/turn-classes.txt"])
 
-  @doc """
-  Encodes an attribute tuple into a new tuple representing its type and
-  an encoded binary representation of its value
-  """
+  # Encodes an attribute tuple into a new tuple representing its type and
+  # an encoded binary representation of its value
   for line <- File.stream!(attrs_path, [], :line) do
-    [byte, name, type] = line |> String.split("\t") |> Enum.map(&String.strip(&1))
+    [byte, name, type] = line |> String.split("\t") |> Enum.map(&String.trim(&1))
 
     case type do
       "value" ->
@@ -185,14 +173,14 @@ defmodule XMediaLib.Stun do
           do: {String.to_integer(unquote(byte)), encode_attr_xaddr(value, tid)}
 
       "error_attribute" ->
-        defp decode_attribute(unquote(String.to_integer(byte)), value, tid),
+        defp decode_attribute(unquote(String.to_integer(byte)), value, _),
           do: {String.to_atom(unquote(name)), decode_attr_err(value)}
 
         defp encode_attribute(unquote(String.to_atom(name)), value, _),
           do: {String.to_integer(unquote(byte)), encode_attr_err(value)}
 
       "request" ->
-        defp decode_attribute(unquote(String.to_integer(byte)), value, tid),
+        defp decode_attribute(unquote(String.to_integer(byte)), value, _),
           do: {String.to_atom(unquote(name)), decode_change_req(value)}
 
         defp encode_attribute(unquote(String.to_atom(name)), value, _),
@@ -210,11 +198,9 @@ defmodule XMediaLib.Stun do
     {other, value}
   end
 
-  @doc """
-  Provides packet method type based on id and vice versa
-  """
+  # Provides packet method type based on id and vice versa
   for line <- File.stream!(methods_path, [], :line) do
-    [id, name] = line |> String.split("\t") |> Enum.map(&String.strip(&1))
+    [id, name] = line |> String.split("\t") |> Enum.map(&String.trim(&1))
 
     defp get_method(<<unquote(String.to_integer(id))::size(12)>>),
       do: unquote(String.to_atom(name))
@@ -229,11 +215,9 @@ defmodule XMediaLib.Stun do
   defp get_method_id(o),
     do: o
 
-  @doc """
-  Provides packet class type based on id and vice versa
-  """
+  # Provides packet class type based on id and vice versa
   for line <- File.stream!(classes_path, [], :line) do
-    [id, name] = line |> String.split("\t") |> Enum.map(&String.strip(&1))
+    [id, name] = line |> String.split("\t") |> Enum.map(&String.trim(&1))
 
     defp get_class(<<unquote(String.to_integer(id))::size(2)>>),
       do: unquote(String.to_atom(name))
@@ -267,7 +251,7 @@ defmodule XMediaLib.Stun do
     padding_length =
       case rem(item_length, 4) do
         0 -> 0
-        other when whole_pkt? -> 0
+        _other when whole_pkt? -> 0
         other -> 4 - other
       end
 
@@ -441,41 +425,26 @@ defmodule XMediaLib.Stun do
       0x04::size(8), crc::size(32)>>
   end
 
-  # Checks for an integrity marker and its validity in a STUN binary (RFC 3489)
-  # Must be called AFTER check_fingerprint due to forward RFC incompatibility
-  # Currently mocked
-  defp check_integrity(stun_binary) do
-    s = byte_size(stun_binary) - 24
-
-    case stun_binary do
-      <<message::binary-size(s), 0x00::size(8), 0x08::size(8), 0x00::size(8), 0x14::size(8),
-        fingerprint::binary-size(20)>> ->
-        try do
-          <<h::size(16), old_size::size(16), payload::binary>> = message
-          new_size = old_size - 24
-          {true, <<h::size(16), new_size::size(16), payload::binary>>}
-        rescue
-          _ ->
-            Logger.info("MESSAGE-INTEGRITY invalid in STUN message.")
-            raise IntegrityError, message: "Integrity check failed"
-        end
-
-      _ ->
-        Logger.info("No MESSAGE-INTEGRITY was found in STUN message.")
-        {false, stun_binary}
+  defp maybe_insert_fingerprint(stun_binary, %Stun{} = config) do
+    case config.fingerprint do
+      false -> stun_binary
+      true -> insert_fingerprint(stun_binary)
     end
   end
 
-  # full check of integrity
-  defp check_integrity(stun_binary, nil), do: {false, stun_binary}
+  # Checks for an integrity marker and its validity in a STUN binary (RFC 3489)
+  # Must be called AFTER check_fingerprint due to forward RFC incompatibility
 
-  defp check_integrity(stun_binary, key) when byte_size(stun_binary) > 20 + 24 do
+  # full check of integrity
+  def check_integrity(stun_binary, nil), do: {false, stun_binary}
+
+  def check_integrity(stun_binary, key) when byte_size(stun_binary) > 20 + 24 do
     s = byte_size(stun_binary) - 24
 
     case stun_binary do
       <<message::binary-size(s), 0x00::size(8), 0x08::size(8), 0x00::size(8), 0x14::size(8),
         fingerprint::binary-size(20)>> ->
-        ^fingerprint = hmac_sha1(message, key)
+        ^fingerprint = :crypto.hmac(:sha, key, message)
         <<h::size(16), old_size::size(16), payload::binary>> = message
         new_size = old_size - 24
         {true, <<h::size(16), new_size::size(16), payload::binary>>}
@@ -491,26 +460,16 @@ defmodule XMediaLib.Stun do
     do: stun_binary
 
   defp insert_integrity(stun_binary, key) do
-    Logger.info("INSERTING INTEGRITY WITH KEY #{inspect(key)}")
-    <<0::2, type::14, len::16, magic::32, trid::96, attrs::binary>> = stun_binary
-    ## 24 is the length of Message-Integrity attribute
-    nlen = len + 4 + 20
-    value = <<0::2, type::14, nlen::16, magic::32, trid::96, attrs::binary>>
-    integrity = hmac_sha1(value, key)
-    # integrity = enc_attr(?STUN_ATTR_MESSAGE_INTEGRITY, hash)
-    <<0::2, type::14, nlen::16, magic::32, trid::96, attrs::binary, 0x00::size(8), 0x08::size(8),
-      0x00::size(8), 0x14::size(8), integrity::binary-size(20)>>
+    <<h::size(16), _::size(16), message::binary>> = stun_binary
+    s = byte_size(stun_binary) + 24 - 20
+    fingerprint = :crypto.hmac(:sha, key, <<h::size(16), s::size(16), message::binary>>)
+
+    <<h::size(16), s::size(16), message::binary, 0x00::size(8), 0x08::size(8), 0x00::size(8),
+      0x14::size(8), fingerprint::binary>>
   end
 
-  defp hmac_sha1(msg, hash) when is_binary(msg) and is_binary(hash) do
-    key = :crypto.hash(:md5, to_char_list(hash))
-    :crypto.hmac(:sha, key, msg)
-  end
+  defp maybe_insert_integrity(stun_binary, %Stun{key: key}),
+    do: insert_integrity(stun_binary, key)
 
-  # Removes null value from the end of a list string or bitstring
-  defp fix_null_terminated(str) when is_list(str),
-    do: for(x <- str, x != 0, do: x)
-
-  defp fix_null_terminated(bin) when is_binary(bin),
-    do: for(<<x::8 <- bin>>, x != 0, do: <<x::size(8)>>, into: "")
+  defp maybe_insert_integrity(stun_binary, %Stun{}), do: stun_binary
 end

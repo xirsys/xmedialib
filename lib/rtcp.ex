@@ -219,13 +219,13 @@ defmodule XMediaLib.Rtcp do
 
   def decode(<<1::size(8), rest::binary>>, decoded_rtcps) do
     # FIXME Should we do this at all?
-    Logger.warning("Try to fix wrong RTCP version (0)")
+    Logger.warn("Try to fix wrong RTCP version (0)")
     decode(<<@rtcp_version::size(2), 0::size(1), 1::size(5), rest::binary>>, decoded_rtcps)
   end
 
   def decode(<<1::size(2), rest::binary>>, decoded_rtcps) do
     # FIXME Should we do this at all?
-    Logger.warning("Try to fix wrong RTCP version (1)")
+    Logger.warn("Try to fix wrong RTCP version (1)")
     decode(<<@rtcp_version::size(2), rest::binary>>, decoded_rtcps)
   end
 
@@ -259,7 +259,7 @@ defmodule XMediaLib.Rtcp do
 
   # SMPTE Time-Codes (short form)
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), _mbz::size(5), @rtcp_smptetc::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), _mbz::size(5), @rtcp_smptetc::size(8),
           3::size(16), ssrc::size(32), timestamp::size(32), s::size(1), hours::size(5),
           minutes::size(6), seconds::size(6), frames::size(6), 0::size(8), tail::binary>>,
         decoded_rtcps
@@ -283,7 +283,7 @@ defmodule XMediaLib.Rtcp do
 
   # SMPTE Time-Codes (long form)
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), _mbz::size(5), @rtcp_smptetc::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), _mbz::size(5), @rtcp_smptetc::size(8),
           4::size(16), ssrc::size(32), timestamp::size(32), smpte12m::size(64), tail::binary>>,
         decoded_rtcps
       ),
@@ -300,7 +300,7 @@ defmodule XMediaLib.Rtcp do
   # * Packets - sender's packet count
   # * Octets - sender's octet count
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), rc::size(5), @rtcp_sr::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), rc::size(5), @rtcp_sr::size(8),
           length::size(16), ssrc::size(32), ntp::size(64), timestamp::size(32), packets::size(32),
           octets::size(32), rest::binary>>,
         decoded_rtcps
@@ -327,7 +327,7 @@ defmodule XMediaLib.Rtcp do
 
   # Receiver Report
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), rc::size(5), @rtcp_rr::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), rc::size(5), @rtcp_rr::size(8),
           length::size(16), ssrc::size(32), rest::binary>>,
         decoded_rtcps
       ) do
@@ -343,7 +343,7 @@ defmodule XMediaLib.Rtcp do
 
   # Inter-arrival Jitter (must be placed after a receiver report and MUST have the same value for RC)
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), rc::size(5), @rtcp_ij::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), rc::size(5), @rtcp_ij::size(8),
           length::size(16), rest::binary>>,
         decoded_rtcps
       ) do
@@ -351,9 +351,9 @@ defmodule XMediaLib.Rtcp do
     <<ijs::binary-size(byte_length), tail::binary>> = rest
 
     case :lists.reverse(decoded_rtcps) do
-      [%Rr{ssrc: ssrc, rblocks: report_blocks} = rr | other] when rc == length(report_blocks) ->
+      [%Rr{ssrc: _ssrc, rblocks: report_blocks} = rr | other] when rc == length(report_blocks) ->
         ijl = for <<ij::size(32) <- ijs>>, do: ij
-        decode(tail, :list.reverse([%Rr{rr | ijs: ijl} | other]))
+        decode(tail, Enum.reverse([%Rr{rr | ijs: ijl} | other]))
 
       _ ->
         decode(tail, decoded_rtcps)
@@ -362,7 +362,7 @@ defmodule XMediaLib.Rtcp do
 
   # Source DEScription
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), rc::size(5), @rtcp_sdes::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), _rc::size(5), @rtcp_sdes::size(8),
           length::size(16), rest::binary>>,
         decoded_rtcps
       ) do
@@ -376,7 +376,7 @@ defmodule XMediaLib.Rtcp do
         _ ->
           rem_size = byte_length - byte_size(rest)
           nrem_size = 8 * rem_size
-          Logger.warning("RTCP SDES missing padding [#{inspect(<<0::size(nrem_size)>>)}]")
+          Logger.warn("RTCP SDES missing padding [#{inspect(<<0::size(nrem_size)>>)}]")
           <<0::size(nrem_size)>>
       end
 
@@ -389,7 +389,7 @@ defmodule XMediaLib.Rtcp do
   # End of stream (but not necessary the end of communication, since there may be
   # many streams within)
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), rc::size(5), @rtcp_bye::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), rc::size(5), @rtcp_bye::size(8),
           length::size(16), rest::binary>>,
         decoded_rtcps
       ) do
@@ -400,7 +400,7 @@ defmodule XMediaLib.Rtcp do
 
   # Application-specific data
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), subtype::size(5), @rtcp_app::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), subtype::size(5), @rtcp_app::size(8),
           length::size(16), ssrc::size(32), name::binary-size(4), rest::binary>>,
         decoded_rtcps
       ) do
@@ -411,7 +411,7 @@ defmodule XMediaLib.Rtcp do
 
   # eXtended Report
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), _mbz::size(5), @rtcp_xr::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), _mbz::size(5), @rtcp_xr::size(8),
           length::size(16), ssrc::size(32), rest::binary>>,
         decoded_rtcps
       ) do
@@ -426,7 +426,7 @@ defmodule XMediaLib.Rtcp do
 
   # Transport layer FB message (Generic NACK)
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), 1::size(5), @rtcp_rtpfb::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), 1::size(5), @rtcp_rtpfb::size(8),
           length::size(16), ssrc_sender::size(32), ssrc_media::size(32), rest::binary>>,
         decoded_rtcps
       ) do
@@ -438,7 +438,7 @@ defmodule XMediaLib.Rtcp do
 
   # Payload-Specific FeedBack message - Picture Loss Indication (PLI)
   def decode(
-        <<rtcp_version::size(2), padding_flag::size(1), 1::size(5), @rtcp_psfb::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), 1::size(5), @rtcp_psfb::size(8),
           2::size(16), ssrc_sender::size(32), ssrc_media::size(32), rest::binary>>,
         decoded_rtcps
       ),
@@ -446,7 +446,7 @@ defmodule XMediaLib.Rtcp do
 
   # Payload-Specific FeedBack message - Slice Loss Indication (SLI)
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), 2::size(5), @rtcp_psfb::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), 2::size(5), @rtcp_psfb::size(8),
           length::size(16), ssrc_sender::size(32), ssrc_media::size(32), rest::binary>>,
         decoded_rtcps
       ) do
@@ -462,7 +462,7 @@ defmodule XMediaLib.Rtcp do
 
   # Payload-Specific FeedBack message - Reference Picture Selection Indication (RPSI)
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), 3::size(5), @rtcp_psfb::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), 3::size(5), @rtcp_psfb::size(8),
           length::size(16), ssrc_sender::size(32), ssrc_media::size(32), padding_bits::size(8),
           0::size(1), payload_type::size(7), rest::binary>>,
         decoded_rtcps
@@ -487,7 +487,7 @@ defmodule XMediaLib.Rtcp do
 
   # Payload-Specific FeedBack message - Application layer FB (AFB) message
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), 15::size(5), @rtcp_psfb::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), 15::size(5), @rtcp_psfb::size(8),
           length::size(16), ssrc_sender::size(32), ssrc_media::size(32), rest::binary>>,
         decoded_rtcps
       ) do
@@ -498,7 +498,7 @@ defmodule XMediaLib.Rtcp do
 
   # IEEE 1733 AVB
   def decode(
-        <<@rtcp_version::size(2), padding_flag::size(1), 0::size(5), @rtcp_avb::size(8),
+        <<@rtcp_version::size(2), _padding_flag::size(1), 0::size(5), @rtcp_avb::size(8),
           9::size(16), ssrc::size(32), name::size(32), gmtbi::size(16), gmid::binary-size(10),
           sid::binary-size(8), astime::size(64), rtptime::size(64), rest::binary>>,
         decoded_rtcps
@@ -521,12 +521,12 @@ defmodule XMediaLib.Rtcp do
         )
 
   def decode(<<0::size(32), rest::binary>>, decoded_rtcps) do
-    Logger.warning("RTCP unknown padding [<<0,0,0,0>>]")
+    Logger.warn("RTCP unknown padding [<<0,0,0,0>>]")
     decode(rest, decoded_rtcps)
   end
 
   def decode(padding, decoded_rtcps) do
-    Logger.warning("RTCP unknown padding (SRTCP?) [#{inspect(padding)}]")
+    Logger.warn("RTCP unknown padding (SRTCP?) [#{inspect(padding)}]")
     {:warn, %Rtcp{payloads: decoded_rtcps}}
   end
 
@@ -545,7 +545,7 @@ defmodule XMediaLib.Rtcp do
   def decode_rblocks(<<>>, 0, rblocks), do: {rblocks, <<>>}
 
   def decode_rblocks(<<>>, _rc, rblocks) do
-    Logger.warning("ReportBlocks wrong RC count")
+    Logger.warn("ReportBlocks wrong RC count")
     {rblocks, <<>>}
   end
 
@@ -554,7 +554,7 @@ defmodule XMediaLib.Rtcp do
   # decoded
   def decode_rblocks(padding, 0, rblocks) do
     # We should report about padding since it may be also malformed RTCP packet
-    Logger.warning("ReportBlocks padding [#{inspect(padding)}]")
+    Logger.warn("ReportBlocks padding [#{inspect(padding)}]")
     {rblocks, padding}
   end
 
@@ -593,7 +593,7 @@ defmodule XMediaLib.Rtcp do
 
   def decode_rblocks(padding, _rc, rblocks) when byte_size(padding) < 24 do
     # We should report about padding since it may be also malformed RTCP packet
-    Logger.warning("ReportBlocks padding [#{inspect(padding)}]")
+    Logger.warn("ReportBlocks padding [#{inspect(padding)}]")
     {rblocks, padding}
   end
 
@@ -606,7 +606,7 @@ defmodule XMediaLib.Rtcp do
   # decoded
   def decode_xrblocks(padding, 0, xrblocks) do
     # We should report about padding since it may be also malformed RTCP packet
-    Logger.warning("eXtended ReportBlocks padding [#{padding}]")
+    Logger.warn("eXtended ReportBlocks padding [#{padding}]")
     xrblocks
   end
 
@@ -655,50 +655,50 @@ defmodule XMediaLib.Rtcp do
         <<@sdes_cname::size(8), l::size(8), v::binary-size(l), tail::binary>>,
         items
       ),
-      do: decode_sdes_item(tail, items ++ [cname: to_char_list(v)])
+      do: decode_sdes_item(tail, items ++ [cname: to_charlist(v)])
 
   def decode_sdes_item(
         <<@sdes_name::size(8), l::size(8), v::binary-size(l), tail::binary>>,
         items
       ),
-      do: decode_sdes_item(tail, items ++ [name: to_char_list(v)])
+      do: decode_sdes_item(tail, items ++ [name: to_charlist(v)])
 
   def decode_sdes_item(
         <<@sdes_email::size(8), l::size(8), v::binary-size(l), tail::binary>>,
         items
       ),
-      do: decode_sdes_item(tail, items ++ [email: to_char_list(v)])
+      do: decode_sdes_item(tail, items ++ [email: to_charlist(v)])
 
   def decode_sdes_item(
         <<@sdes_phone::size(8), l::size(8), v::binary-size(l), tail::binary>>,
         items
       ),
-      do: decode_sdes_item(tail, items ++ [phone: to_char_list(v)])
+      do: decode_sdes_item(tail, items ++ [phone: to_charlist(v)])
 
   def decode_sdes_item(
         <<@sdes_loc::size(8), l::size(8), v::binary-size(l), tail::binary>>,
         items
       ),
-      do: decode_sdes_item(tail, items ++ [loc: to_char_list(v)])
+      do: decode_sdes_item(tail, items ++ [loc: to_charlist(v)])
 
   def decode_sdes_item(
         <<@sdes_tool::size(8), l::size(8), v::binary-size(l), tail::binary>>,
         items
       ),
-      do: decode_sdes_item(tail, items ++ [tool: to_char_list(v)])
+      do: decode_sdes_item(tail, items ++ [tool: to_charlist(v)])
 
   def decode_sdes_item(
         <<@sdes_note::size(8), l::size(8), v::binary-size(l), tail::binary>>,
         items
       ),
-      do: decode_sdes_item(tail, items ++ [note: to_char_list(v)])
+      do: decode_sdes_item(tail, items ++ [note: to_charlist(v)])
 
   def decode_sdes_item(
         <<@sdes_priv::size(8), l::size(8), v::binary-size(l), tail::binary>>,
         items
       ) do
     <<pl::size(8), pd::binary-size(pl), rest::binary>> = v
-    decode_sdes_item(tail, items ++ [priv: {to_char_list(pd), rest}])
+    decode_sdes_item(tail, items ++ [priv: {to_charlist(pd), rest}])
   end
 
   def decode_sdes_item(<<@sdes_null::size(8), tail::binary>>, items) do
@@ -727,11 +727,11 @@ defmodule XMediaLib.Rtcp do
 
   def decode_bye(<<l::size(8), text::binary-size(l), _::binary>>, 0, ret),
     # Text message is always the last data chunk in BYE packet
-    do: %Bye{message: to_char_list(text), ssrc: ret}
+    do: %Bye{message: to_charlist(text), ssrc: ret}
 
   def decode_bye(padding, 0, ret) do
     # No text, no SSRC left, so just returning what we already have
-    Logger.warning("BYE padding [#{inspect(padding)}]")
+    Logger.warn("BYE padding [#{inspect(padding)}]")
     %Bye{ssrc: ret}
   end
 
@@ -746,7 +746,7 @@ defmodule XMediaLib.Rtcp do
   #################################
 
   def encode(%Rtcp{payloads: list, encrypted: nil}) when is_list(list),
-    do: for(<<x <- list>>, into: "", do: <<encode(x)::binary>>)
+    do: for(x <- list, into: "", do: <<encode(x)::binary>>)
 
   def encode(%Rtcp{encrypted: bin}) when is_binary(bin), do: bin
 
@@ -887,7 +887,7 @@ defmodule XMediaLib.Rtcp do
 
   def encode_sdes(sdes_items_list) when is_list(sdes_items_list) do
     rc = length(sdes_items_list)
-    sdes_data = for <<x <- sdes_items_list>>, into: "", do: <<encode_sdes_items(x)::binary>>
+    sdes_data = for x <- sdes_items_list, into: "", do: <<encode_sdes_items(x)::binary>>
     length = div(byte_size(sdes_data), 4)
 
     # TODO ensure that this list is null-terminated and no null-terminator
@@ -897,7 +897,7 @@ defmodule XMediaLib.Rtcp do
   end
 
   def encode_bye(ssrcs_list, []) when is_list(ssrcs_list) do
-    ssrcs = for <<s <- ssrcs_list>>, into: "", do: <<s::size(32)>>
+    ssrcs = for s <- ssrcs_list, into: "", do: <<s::size(32)>>
     sc = div(byte_size(ssrcs), 4)
 
     <<@rtcp_version::size(2), @padding_no::size(1), sc::size(5), @rtcp_bye::size(8), sc::size(16),
@@ -906,7 +906,7 @@ defmodule XMediaLib.Rtcp do
 
   def encode_bye(ssrcs_list, message_list) when is_list(ssrcs_list) and is_list(message_list) do
     message = to_string(message_list)
-    ssrcs = for <<s <- ssrcs_list>>, into: "", do: <<s::size(32)>>
+    ssrcs = for s <- ssrcs_list, into: "", do: <<s::size(32)>>
     sc = div(byte_size(ssrcs), 4)
     # FIXME no more than 255 symbols
     text_length = byte_size(message)
@@ -953,7 +953,7 @@ defmodule XMediaLib.Rtcp do
   end
 
   def encode_rblocks(rblocks) when is_list(rblocks),
-    do: for(<<rblock <- rblocks>>, into: "", do: <<encode_rblock(rblock)::binary>>)
+    do: for(rblock <- rblocks, into: "", do: <<encode_rblock(rblock)::binary>>)
 
   # * SSRC - SSRC of the source
   # * FL - fraction lost
@@ -1032,7 +1032,7 @@ defmodule XMediaLib.Rtcp do
   end
 
   def encode_xrblocks(xrblocks) when is_list(xrblocks),
-    do: for(<<xrblock <- xrblocks>>, into: "", do: <<encode_xrblock(xrblock)::binary>>)
+    do: for(xrblock <- xrblocks, into: "", do: <<encode_xrblock(xrblock)::binary>>)
 
   def encode_xrblock(%Xrblock{type: bt, ts: ts, data: data}), do: encode_xrblock(bt, ts, data)
 

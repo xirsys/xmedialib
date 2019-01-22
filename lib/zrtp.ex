@@ -36,6 +36,23 @@
 defmodule XMediaLib.Zrtp do
   require Logger
 
+  alias XMediaLib.CRC32C
+
+  alias XMediaLib.ZrtpSchema.{
+    Hello,
+    Commit,
+    DHPart1,
+    DHPart2,
+    Confirm1,
+    Confirm2,
+    Error,
+    GoClear,
+    Ping,
+    PingAck,
+    SASRelay,
+    Signature
+  }
+
   @zrtp_marker 0x1000
   # <<"ZRTP">>, <<90,82,84,80>>
   @zrtp_magic_cookie 0x5A525450
@@ -58,207 +75,104 @@ defmodule XMediaLib.Zrtp do
   @zrtp_msg_ping "Ping    "
   @zrtp_msg_pingack "PingACK "
 
-  @zrtp_hash_s256 <<"S256">>
-  @zrtp_hash_s384 <<"S384">>
-  @zrtp_hash_n256 <<"N256">>
-  @zrtp_hash_n384 <<"N384">>
-  @zrtp_hash_all_supported [@zrtp_hash_s256, @zrtp_hash_s384]
-
-  @zrtp_cipher_aes1 <<"AES1">>
-  @zrtp_cipher_aes2 <<"AES2">>
-  @zrtp_cipher_aes3 <<"AES3">>
-  @zrtp_cipher_2fs1 <<"2FS1">>
-  @zrtp_cipher_2fs2 <<"2FS2">>
-  @zrtp_cipher_2fs3 <<"2FS3">>
-  @zrtp_cipher_all_supported [@zrtp_cipher_aes1, @zrtp_cipher_aes2, @zrtp_cipher_aes3]
-
-  @zrtp_auth_tag_hs32 <<"HS32">>
-  @zrtp_auth_tag_hs80 <<"HS80">>
-  @zrtp_auth_tag_sk32 <<"SK32">>
-  @zrtp_auth_tag_sk64 <<"SK64">>
-  @zrtp_auth_all_supported [@zrtp_auth_tag_hs32, @zrtp_auth_tag_hs80]
-
-  # DH mode with p=2048 bit prime per RFC 3526, Section 3.
-  @zrtp_key_agreement_dh2k <<"DH2k">>
-  # DH mode with p=3072 bit prime per RFC 3526, Section 4.
-  @zrtp_key_agreement_dh3k <<"DH3k">>
-  # DH mode with p=3072 bit prime per RFC 3526, Section 5.
-  @zrtp_key_agreement_dh4k <<"DH4k">>
-  # Elliptic Curve DH, P-256 per RFC 5114, Section 2.6
-  @zrtp_key_agreement_ec25 <<"EC25">>
-  # Elliptic Curve DH, P-384 per RFC 5114, Section 2.7
-  @zrtp_key_agreement_ec38 <<"EC38">>
-  # Elliptic Curve DH, P-521 per RFC 5114, Section 2.8 (deprecated - do not use)
-  @zrtp_key_agreement_ec52 <<"EC52">>
   # Preshared Non-DH mode
   @zrtp_key_agreement_prsh <<"Prsh">>
   # Multistream Non-DH mode
   @zrtp_key_agreement_mult <<"Mult">>
-  @zrtp_key_agreement_all_supported [
-    @zrtp_key_agreement_dh2k,
-    @zrtp_key_agreement_dh3k,
-    @zrtp_key_agreement_dh4k
-  ]
 
-  @zrtp_sas_type_b32 <<"B32 ">>
-  @zrtp_sas_type_b256 <<"B256">>
-  @zrtp_sas_type_all_supported [@zrtp_sas_type_b32, @zrtp_sas_type_b256]
+  def zrtp_hash_s256(), do: <<"S256">>
+  def zrtp_hash_s384(), do: <<"S384">>
+  def zrtp_hash_n256(), do: <<"N256">>
+  def zrtp_hash_n384(), do: <<"N384">>
+  def zrtp_hash_all_supported(), do: [zrtp_hash_s256(), zrtp_hash_s384()]
 
-  @zrtp_signature_type_pgp <<"PGP ">>
-  @zrtp_signature_type_x509 <<"X509">>
+  def zrtp_cipher_aes1(), do: <<"AES1">>
+  def zrtp_cipher_aes2(), do: <<"AES2">>
+  def zrtp_cipher_aes3(), do: <<"AES3">>
+  def zrtp_cipher_2fs1(), do: <<"2FS1">>
+  def zrtp_cipher_2fs2(), do: <<"2FS2">>
+  def zrtp_cipher_2fs3(), do: <<"2FS3">>
+
+  def zrtp_cipher_all_supported(),
+    do: [zrtp_cipher_aes1(), zrtp_cipher_aes2(), zrtp_cipher_aes3()]
+
+  def zrtp_auth_tag_hs32(), do: <<"HS32">>
+  def zrtp_auth_tag_hs80(), do: <<"HS80">>
+  def zrtp_auth_tag_sk32(), do: <<"SK32">>
+  def zrtp_auth_tag_sk64(), do: <<"SK64">>
+  def zrtp_auth_all_supported(), do: [zrtp_auth_tag_hs32(), zrtp_auth_tag_hs80()]
+
+  # DH mode with p=2048 bit prime per RFC 3526, Section 3.
+  def zrtp_key_agreement_dh2k(), do: <<"DH2k">>
+  # DH mode with p=3072 bit prime per RFC 3526, Section 4.
+  def zrtp_key_agreement_dh3k(), do: <<"DH3k">>
+  # DH mode with p=3072 bit prime per RFC 3526, Section 5.
+  def zrtp_key_agreement_dh4k(), do: <<"DH4k">>
+  # Elliptic Curve DH, P-256 per RFC 5114, Section 2.6
+  def zrtp_key_agreement_ec25(), do: <<"EC25">>
+  # Elliptic Curve DH, P-384 per RFC 5114, Section 2.7
+  def zrtp_key_agreement_ec38(), do: <<"EC38">>
+  # Elliptic Curve DH, P-521 per RFC 5114, Section 2.8 (deprecated - do not use)
+  def zrtp_key_agreement_ec52(), do: <<"EC52">>
+
+  def zrtp_key_agreement_all_supported(),
+    do: [
+      zrtp_key_agreement_dh2k(),
+      zrtp_key_agreement_dh3k(),
+      zrtp_key_agreement_dh4k()
+    ]
+
+  def zrtp_sas_type_b32(), do: <<"B32 ">>
+  def zrtp_sas_type_b256(), do: <<"B256">>
+  def zrtp_sas_type_all_supported(), do: [zrtp_sas_type_b32(), zrtp_sas_type_b256()]
+
+  def zrtp_signature_type_pgp(), do: <<"PGP ">>
+  def zrtp_signature_type_x509(), do: <<"X509">>
 
   # Malformed packet (CRC OK, but wrong structure)
-  @zrtp_error_malformed_packet 0x10
+  def zrtp_error_malformed_packet(), do: 0x10
   # Critical software error
-  @zrtp_error_software 0x20
+  def zrtp_error_software(), do: 0x20
   # Unsupported ZRTP version
-  @zrtp_error_unsupported_version 0x30
+  def zrtp_error_unsupported_version(), do: 0x30
   # Hello components mismatch
-  @zrtp_error_hello_mismatch 0x40
+  def zrtp_error_hello_mismatch(), do: 0x40
   # Hash Type not supported
-  @zrtp_error_unsupported_hash 0x51
+  def zrtp_error_unsupported_hash(), do: 0x51
   # Cipher Type not supported
-  @zrtp_error_unsupported_cypher 0x52
+  def zrtp_error_unsupported_cypher(), do: 0x52
   # Public key exchange not supported
-  @zrtp_error_unsupported_key_exchange 0x53
+  def zrtp_error_unsupported_key_exchange(), do: 0x53
   # SRTP auth tag not supported
-  @zrtp_error_unsupported_auth_tag 0x54
+  def zrtp_error_unsupported_auth_tag(), do: 0x54
   # SAS rendering scheme not supported
-  @zrtp_error_unsupported_sas 0x55
+  def zrtp_error_unsupported_sas(), do: 0x55
   # No shared secret available, DH mode required
-  @zrtp_error_no_shared_secrets 0x56
+  def zrtp_error_no_shared_secrets(), do: 0x56
   # DH Error: bad pvi or pvr ( == 1, 0, or p-1)
-  @zrtp_error_dh_bad_pv 0x61
+  def zrtp_error_dh_bad_pv(), do: 0x61
   # DH Error: hvi != hashed data
-  @zrtp_error_dh_bad_hv 0x62
+  def zrtp_error_dh_bad_hv(), do: 0x62
   # Received relayed SAS from untrusted MiTM
-  @zrtp_error_mitm 0x63
+  def zrtp_error_mitm(), do: 0x63
   # Auth Error: Bad Confirm pkt MAC
-  @zrtp_error_mac 0x70
+  def zrtp_error_mac(), do: 0x70
   # Nonce reuse
-  @zrtp_error_nonce 0x80
+  def zrtp_error_nonce(), do: 0x80
   # Equal ZIDs in Hello
-  @zrtp_error_zid 0x90
+  def zrtp_error_zid(), do: 0x90
   # SSRC collision
-  @zrtp_error_ssrc 0x91
+  def zrtp_error_ssrc(), do: 0x91
   # Service unavailable
-  @zrtp_error_unavailable 0xA0
+  def zrtp_error_unavailable(), do: 0xA0
   # Protocol timeout error
-  @zrtp_error_timeout 0xB0
+  def zrtp_error_timeout(), do: 0xB0
   # GoClear message received, but not allowed
-  @zrtp_error_goclear_na 0x100
+  def zrtp_error_goclear_na(), do: 0x100
 
   defstruct sequence: 0,
             ssrc: 0,
             message: nil
-
-  defmodule Hello do
-    defstruct clientid: <<"Erlang (Z)RTPLIB">>,
-              h3: nil,
-              zid: nil,
-              s: nil,
-              m: nil,
-              p: nil,
-              hash: [],
-              cipher: [],
-              auth: [],
-              keyagr: [],
-              sas: [],
-              mac: <<0, 0, 0, 0, 0, 0, 0, 0>>
-  end
-
-  defmodule Commit do
-    defstruct h2: nil,
-              zid: nil,
-              hash: nil,
-              cipher: nil,
-              auth: nil,
-              keyagr: nil,
-              sas: nil,
-              hvi: nil,
-              nonce: nil,
-              keyid: nil,
-              mac: <<0, 0, 0, 0, 0, 0, 0, 0>>
-  end
-
-  defmodule DhPart1 do
-    defstruct h1: nil,
-              rs1idr: nil,
-              rs2idr: nil,
-              auxsecretidr: nil,
-              pbxsecretidr: nil,
-              pvr: nil,
-              mac: <<0, 0, 0, 0, 0, 0, 0, 0>>
-  end
-
-  defmodule DhPart2 do
-    defstruct h1: nil,
-              rs1idi: nil,
-              rs2idi: nil,
-              auxsecretidi: nil,
-              pbxsecretidi: nil,
-              pvi: nil,
-              mac: <<0, 0, 0, 0, 0, 0, 0, 0>>
-  end
-
-  defmodule Confirm1 do
-    defstruct conf_mac: nil,
-              cfb_init_vect: nil,
-              h0: nil,
-              pbx_enrollement: nil,
-              sas_verified: nil,
-              allow_clear: nil,
-              disclosure: nil,
-              cache_exp_interval: nil,
-              signature: nil,
-              encrypted_data: nil
-  end
-
-  defmodule Confirm2 do
-    defstruct conf_mac: nil,
-              cfb_init_vect: nil,
-              h0: nil,
-              pbx_enrollement: nil,
-              sas_verified: nil,
-              allow_clear: nil,
-              disclosure: nil,
-              cache_exp_interval: nil,
-              signature: nil,
-              encrypted_data: nil
-  end
-
-  defmodule Error do
-    defstruct code: nil
-  end
-
-  defmodule GoClear do
-    defstruct mac: nil
-  end
-
-  defmodule SasRelay do
-    defstruct mac: nil,
-              cfb_init_vect: nil,
-              sas_verified: nil,
-              allow_clear: nil,
-              disclosure: nil,
-              sas_rend_scheme: nil,
-              mitm_sash_hash: nil,
-              signature: nil
-  end
-
-  defmodule Ping do
-    defstruct hash: nil
-  end
-
-  defmodule PingACK do
-    defstruct sender_hash: nil,
-              receiver_hash: nil,
-              ssrc: nil
-  end
-
-  defmodule Signature do
-    defstruct type: nil, data: nil
-  end
 
   @zrtp_signature_hello 0x505A
   @zrtp_version "1.10"
@@ -276,8 +190,8 @@ defmodule XMediaLib.Zrtp do
     l = byte_size(rest) - 4
     <<bin_message::binary-size(l), crc::size(32)>> = rest
 
-    <<crc::size(32)>> ==
-      :crc32c.crc32c(
+    <<^crc::size(32)>> =
+      CRC32C.crc32c(
         <<@zrtp_marker::size(16), sequence::size(16), @zrtp_magic_cookie::size(32),
           ssrc::size(32), bin_message::binary>>
       )
@@ -290,7 +204,7 @@ defmodule XMediaLib.Zrtp do
     bin_message = encode_message(message)
 
     crc =
-      :crc32c.crc32c(
+      CRC32C.crc32c(
         <<@zrtp_marker::size(16), sequence::size(16), @zrtp_magic_cookie::size(32),
           ssrc::size(32), bin_message::binary>>
       )
@@ -306,7 +220,7 @@ defmodule XMediaLib.Zrtp do
   #################################
 
   def decode_message(
-        <<@zrtp_signature_hello::size(16), length::size(16), @zrtp_msg_hello, @zrtp_version,
+        <<@zrtp_signature_hello::size(16), _len::size(16), @zrtp_msg_hello, @zrtp_version,
           client_identifier::binary-size(16), hash_image_h3::binary-size(32),
           zid::binary-size(12), 0::size(1), s::size(1), m::size(1), p::size(1), _mbz::size(8),
           hc::size(4), cc::size(4), ac::size(4), kc::size(4), sc::size(4), rest::binary>>
@@ -317,11 +231,11 @@ defmodule XMediaLib.Zrtp do
       key_agreements_bin::binary-size(kcs), sas_types_bin::binary-size(scs),
       mac::binary-size(8)>> = rest
 
-    hashes = Enum.map(hashes_bin, fn x -> <<x::binary-size(4)>> end)
-    ciphers = Enum.map(ciphers_bin, fn x -> <<x::binary-size(4)>> end)
-    auths = Enum.map(auths_bin, fn x -> <<x::binary-size(4)>> end)
-    key_agreements = Enum.map(key_agreements_bin, fn x -> <<x::binary-size(4)>> end)
-    sas_types = Enum.map(sas_types_bin, fn x -> <<x::binary-size(4)>> end)
+    hashes = for <<x::binary-size(4) <- hashes_bin>>, do: x
+    ciphers = for <<x::binary-size(4) <- ciphers_bin>>, do: x
+    auths = for <<x::binary-size(4) <- auths_bin>>, do: x
+    key_agreements = for <<x::binary-size(4) <- key_agreements_bin>>, do: x
+    sas_types = for <<x::binary-size(4) <- sas_types_bin>>, do: x
 
     {:ok,
      %Hello{
@@ -413,10 +327,10 @@ defmodule XMediaLib.Zrtp do
     <<pvr::binary-size(pvrlength), mac::binary-size(8)>> = rest
 
     {:ok,
-     %DhPart1{
+     %DHPart1{
        h1: hash_image_h1,
-       rs1idr: rs1idr,
-       rs2idr: rs2idr,
+       rs1_idr: rs1idr,
+       rs2_idr: rs2idr,
        auxsecretidr: auxsecretidr,
        pbxsecretidr: pbxsecretidr,
        pvr: pvr,
@@ -433,10 +347,10 @@ defmodule XMediaLib.Zrtp do
     <<pvi::binary-size(pvilength), mac::binary-size(8)>> = rest
 
     {:ok,
-     %DhPart2{
+     %DHPart2{
        h1: hash_image_h1,
-       rs1idi: rs1idi,
-       rs2idi: rs2idi,
+       rs1_idi: rs1idi,
+       rs2_idi: rs2idi,
        auxsecretidi: auxsecretidi,
        pbxsecretidi: pbxsecretidi,
        pvi: pvi,
@@ -445,7 +359,7 @@ defmodule XMediaLib.Zrtp do
   end
 
   def decode_message(
-        <<@zrtp_signature_hello::size(16), length::size(16), @zrtp_msg_confirm1,
+        <<@zrtp_signature_hello::size(16), _len::size(16), @zrtp_msg_confirm1,
           conf_mac::binary-size(8), cfb_init_vect::binary-size(16), encrypted_data::binary>>
       ),
       do:
@@ -457,7 +371,7 @@ defmodule XMediaLib.Zrtp do
          }}
 
   def decode_message(
-        <<@zrtp_signature_hello::size(16), length::size(16), @zrtp_msg_confirm2,
+        <<@zrtp_signature_hello::size(16), _len::size(16), @zrtp_msg_confirm2,
           conf_mac::binary-size(8), cfb_init_vect::binary-size(16), encrypted_data::binary>>
       ),
       do:
@@ -488,7 +402,7 @@ defmodule XMediaLib.Zrtp do
     do: {:ok, :clearack}
 
   def decode_message(
-        <<@zrtp_signature_hello::size(16), length::size(16), @zrtp_msg_sasrelay,
+        <<@zrtp_signature_hello::size(16), _len::size(16), @zrtp_msg_sasrelay,
           mac::binary-size(8), cfb_init_vect::binary-size(16), _mbz::size(15), sig_len::size(9),
           0::size(4), 0::size(1), v::size(1), a::size(1), d::size(1), rsrsas::binary-size(4),
           mitm_sash_hash::binary-size(32), rest::binary>>
@@ -505,7 +419,7 @@ defmodule XMediaLib.Zrtp do
       end
 
     {:ok,
-     %SasRelay{
+     %SASRelay{
        mac: mac,
        cfb_init_vect: cfb_init_vect,
        sas_verified: v,
@@ -533,7 +447,7 @@ defmodule XMediaLib.Zrtp do
       ),
       do:
         {:ok,
-         %PingACK{
+         %PingAck{
            sender_hash: sender_endpoint_hash,
            receiver_hash: received_endpoint_hash,
            ssrc: ssrc
@@ -566,11 +480,11 @@ defmodule XMediaLib.Zrtp do
     ac = length(auths)
     kc = length(key_agreements)
     sc = length(sas_types)
-    bin_hashes = for <<x <- hashes>>, into: "", do: <<x::binary>>
-    bin_ciphers = for <<x <- ciphers>>, into: "", do: <<x::binary>>
-    bin_auths = for <<x <- auths>>, into: "", do: <<x::binary>>
-    bin_key_agreements = for <<x <- key_agreements>>, into: "", do: <<x::binary>>
-    bin_sas_types = for <<x <- sas_types>>, into: "", do: <<x::binary>>
+    bin_hashes = for x <- hashes, into: <<>>, do: <<x::binary>>
+    bin_ciphers = for x <- ciphers, into: <<>>, do: <<x::binary>>
+    bin_auths = for x <- auths, into: <<>>, do: <<x::binary>>
+    bin_key_agreements = for x <- key_agreements, into: <<>>, do: <<x::binary>>
+    bin_sas_types = for x <- sas_types, into: <<>>, do: <<x::binary>>
 
     rest =
       <<bin_hashes::binary, bin_ciphers::binary, bin_auths::binary, bin_key_agreements::binary,
@@ -593,7 +507,7 @@ defmodule XMediaLib.Zrtp do
         hash: hash,
         cipher: cipher,
         auth: auth_type,
-        keyagr: <<"Mult">>,
+        keyagr: "Mult",
         sas: sas,
         nonce: nonce,
         mac: mac
@@ -610,7 +524,7 @@ defmodule XMediaLib.Zrtp do
         hash: hash,
         cipher: cipher,
         auth: auth_type,
-        keyagr: <<"Prsh">>,
+        keyagr: "Prsh",
         sas: sas,
         nonce: nonce,
         keyid: key_id,
@@ -639,10 +553,10 @@ defmodule XMediaLib.Zrtp do
           cipher::binary-size(4), auth_type::binary-size(4), key_agreement::binary-size(4),
           sas::binary-size(4), hvi::binary-size(32), mac::binary-size(8)>>
 
-  def encode_message(%DhPart1{
+  def encode_message(%DHPart1{
         h1: hash_image_h1,
-        rs1idr: rs1idr,
-        rs2idr: rs2idr,
+        rs1_idr: rs1idr,
+        rs2_idr: rs2idr,
         auxsecretidr: auxsecretidr,
         pbxsecretidr: pbxsecretidr,
         pvr: pvr,
@@ -655,10 +569,10 @@ defmodule XMediaLib.Zrtp do
       auxsecretidr::binary-size(8), pbxsecretidr::binary-size(8), pvr::binary, mac::binary>>
   end
 
-  def encode_message(%DhPart2{
+  def encode_message(%DHPart2{
         h1: hash_image_h1,
-        rs1idi: rs1idi,
-        rs2idi: rs2idi,
+        rs1_idi: rs1idi,
+        rs2_idi: rs2idi,
         auxsecretidi: auxsecretidi,
         pbxsecretidi: pbxsecretidi,
         pvi: pvi,
@@ -729,7 +643,7 @@ defmodule XMediaLib.Zrtp do
         disclosure: d,
         cache_exp_interval: cache_exp_interval,
         signature: signature,
-        encrypted_data: nill
+        encrypted_data: nil
       }) do
     signature_bin =
       case signature do
@@ -782,7 +696,7 @@ defmodule XMediaLib.Zrtp do
   def encode_message(:clearack),
     do: <<@zrtp_signature_hello::size(16), 3::size(16), @zrtp_msg_clearack>>
 
-  def encode_message(%SasRelay{
+  def encode_message(%SASRelay{
         mac: mac,
         cfb_init_vect: cfb_init_vect,
         sas_verified: v,
@@ -818,7 +732,7 @@ defmodule XMediaLib.Zrtp do
       <<@zrtp_signature_hello::size(16), 6::size(16), @zrtp_msg_ping, @zrtp_version,
         endpoint_hash::binary-size(8)>>
 
-  def encode_message(%PingACK{
+  def encode_message(%PingAck{
         sender_hash: sender_endpoint_hash,
         receiver_hash: received_endpoint_hash,
         ssrc: ssrc
