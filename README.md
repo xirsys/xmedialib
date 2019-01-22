@@ -53,6 +53,15 @@ def deps do
 end
 ```
 
-## Maintainer
+Contact
+===
+For questions or suggestions, please email experts@xirsys.com
 
-For questions, email Lee (<lee(at)xirsys.com>)
+Copyright
+===
+
+Copyright (c) 2013 - 2018 Xirsys LLC
+
+All rights reserved.
+
+XMediaLib is licensed by Xirsys, with permission, under the Apache License Version 2.0. See LICENSE for the full license text.
