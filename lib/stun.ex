@@ -132,6 +132,40 @@ defmodule XMediaLib.Stun do
     |> maybe_insert_fingerprint(config)
   end
 
+  def as_string(%Stun{
+        class: class,
+        method: method,
+        transactionid: transactionid,
+        integrity: integrity,
+        key: key,
+        fingerprint: fingerprint,
+        attrs: attrs
+      }) do
+    %{
+      class: class,
+      method: method,
+      transactionid: transactionid,
+      integrity: integrity,
+      key: key,
+      fingerprint: fingerprint,
+      attrs: as_string(attrs)
+    }
+    |> Map.to_list()
+    |> as_string()
+  end
+
+  def as_string({{i0, i1, i2, i3}, port}), do: "#{i0}.#{i1}.#{i2}.#{i3}:#{port}"
+
+  def as_string({{i0, i1, i2, i3, i4, i5, i6, i7}, port}),
+    do: "#{i0}.#{i1}.#{i2}.#{i3}.#{i4}.#{i5}.#{i6}.#{i7}:#{port}"
+
+  def as_string({attr, value}), do: "#{attr}: #{value}"
+
+  def as_string(val) when is_list(val),
+    do: Enum.map(val, &as_string/1) |> Enum.join(", ") |> wrap("{", "}")
+
+  def as_string(val), do: "#{inspect(val)}"
+
   # -------------------------------------------------------------------------------
   # Start code generation
   # -------------------------------------------------------------------------------
@@ -467,4 +501,6 @@ defmodule XMediaLib.Stun do
     do: insert_integrity(stun_binary, key)
 
   defp maybe_insert_integrity(stun_binary, %Stun{}), do: stun_binary
+
+  defp wrap(content, left, right), do: "#{left}#{content}#{right}"
 end
