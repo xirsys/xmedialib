@@ -64,9 +64,7 @@ defmodule XMediaLib.Stun do
         iex> request = <<0, 1, 0, 0, 33, 18, 164, 66, 0, 146, 225, 0,
         ...> 61, 62, 163, 87, 45, 150, 223, 8>>
         iex> XMediaLib.Stun.decode(request)
-        {:ok, %Stun{attrs: [], class: :request, fingerprint: false,
-        integrity: false, key: nil, method: :binding,
-        transactionid: 177565706535525809372192520}}
+        {:ok, %XMediaLib.Stun{ attrs: %{}, class: :request, fingerprint: false, integrity: false, key: nil, method: :binding, ns: nil, peer_id: nil, transactionid: 177565706535525809372192520}}
   """
   def decode(stun_binary, key \\ nil) do
     {fingerprint, rest} = check_fingerprint(stun_binary)
@@ -104,13 +102,9 @@ defmodule XMediaLib.Stun do
         ...>   mapped_address: {{127,0,0,1}, 12345},
         ...>   source_address: {{127,0,0,1}, 12346},
         ...>   software: <<"XMediaLib-stun">>
-        ...> }
+        ...> }}
         iex> XMediaLib.Stun.encode(response)
-        <<1, 1, 0, 52, 33, 18, 164, 66, 0, 0, 0, 0, 0, 0, 0, 28, 190, 153,
-        26, 20, 0, 32, 0, 8, 0, 1, 17, 43, 94, 18, 164, 67, 0, 1, 0, 8, 0,
-        1, 48, 57, 127, 0, 0, 1, 0, 4, 0, 8, 0, 1, 48, 58, 127, 0, 0, 1,
-        128, 34, 0, 11, 120, 105, 114, 115, 121, 115, 45, 115, 116, 117,
-        110, 0>>
+        <<1, 1, 0, 56, 33, 18, 164, 66, 0, 0, 0, 0, 0, 0, 0, 28, 190, 153, 26, 20, 0, 1, 0, 8, 0, 1, 48, 57, 127, 0, 0, 1, 128, 34, 0, 14, 88, 77, 101, 100, 105, 97, 76, 105, 98, 45, 115, 116, 117, 110, 0, 0, 0, 4, 0, 8, 0, 1, 48, 58, 127, 0, 0, 1, 0, 32, 0, 8, 0, 1, 17, 43, 94, 18, 164, 67>>
   """
   def encode(%XMediaLib.Stun{} = config) do
     # Logger.info "STUN_CONN #{inspect config}"
@@ -132,39 +126,36 @@ defmodule XMediaLib.Stun do
     |> maybe_insert_fingerprint(config)
   end
 
-  def as_string(%Stun{
-        class: class,
-        method: method,
-        transactionid: transactionid,
-        integrity: integrity,
-        key: key,
-        fingerprint: fingerprint,
-        attrs: attrs
-      }) do
-    %{
+  @doc """
+  Accepts data and attempts to convert it to a STUN specific
+  stream as a response to the calling client, formatted to a string.
+  ## Example
+        iex> response = %Stun{class: :success, method: :binding,
+        ...> transactionid: 123456789012, fingerprint: false, attrs: %{
+        ...>   xor_mapped_address: {{127,0,0,1}, 12345},
+        ...>   mapped_address: {{127,0,0,1}, 12345},
+        ...>   source_address: {{127,0,0,1}, 12346},
+        ...>   software: <<"XMediaLib-stun">>
+        ...> }} |> Stun.encode()
+        iex> XMediaLib.Stun.stringify(response)
+        {:ok, 
+          "{\\"attrs\\":{\\"mapped_address\\":\\"127.0.0.1:12345\\",\\"software\\":\\"XMediaLib-stun\\",\\"source_address\\":\\"127.0.0.1:12346\\",\\"xor_mapped_address\\":\\"127.0.0.1:12345\\"},\\"class\\":\\"success\\",\\"method\\":\\"binding\\",\\"transactionid\\":123456789012}"}
+  """
+  def stringify(stun_binary) do
+    <<@stun_marker::2, m0::5, c0::1, m1::3, c1::1, m2::4, length::16, @stun_magic_cookie::32,
+      transactionid::96, rest3::binary>> = stun_binary
+
+    method = get_method(<<m0::size(5), m1::size(3), m2::size(4)>>)
+    class = get_class(<<c0::size(1), c1::size(1)>>)
+    attrs = stringify_attrs(rest3, length, transactionid)
+
+    Jason.encode(%{
       class: class,
       method: method,
       transactionid: transactionid,
-      integrity: integrity,
-      key: key,
-      fingerprint: fingerprint,
-      attrs: as_string(attrs)
-    }
-    |> Map.to_list()
-    |> as_string()
+      attrs: attrs
+    })
   end
-
-  def as_string({{i0, i1, i2, i3}, port}), do: "#{i0}.#{i1}.#{i2}.#{i3}:#{port}"
-
-  def as_string({{i0, i1, i2, i3, i4, i5, i6, i7}, port}),
-    do: "#{i0}.#{i1}.#{i2}.#{i3}.#{i4}.#{i5}.#{i6}.#{i7}:#{port}"
-
-  def as_string({attr, value}), do: "#{attr}: #{value}"
-
-  def as_string(val) when is_list(val),
-    do: Enum.map(val, &as_string/1) |> Enum.join(", ") |> wrap("{", "}")
-
-  def as_string(val), do: "#{inspect(val)}"
 
   # -------------------------------------------------------------------------------
   # Start code generation
@@ -187,12 +178,18 @@ defmodule XMediaLib.Stun do
         defp encode_attribute(unquote(String.to_atom(name)), value, _),
           do: {String.to_integer(unquote(byte)), value}
 
+        defp stringify_attribute(unquote(String.to_integer(byte)), value, _),
+          do: {unquote(name), value}
+
       "attribute" ->
         defp decode_attribute(unquote(String.to_integer(byte)), value, _),
           do: {String.to_atom(unquote(name)), decode_attr_addr(value)}
 
         defp encode_attribute(unquote(String.to_atom(name)), value, _),
           do: {String.to_integer(unquote(byte)), encode_attr_addr(value)}
+
+        defp stringify_attribute(unquote(String.to_integer(byte)), value, _),
+          do: {unquote(name), stringify_attr_addr(value)}
 
       "xattribute" ->
         defp decode_attribute(unquote(String.to_integer(byte)), value, tid),
@@ -201,6 +198,9 @@ defmodule XMediaLib.Stun do
         defp encode_attribute(unquote(String.to_atom(name)), value, tid),
           do: {String.to_integer(unquote(byte)), encode_attr_xaddr(value, tid)}
 
+        defp stringify_attribute(unquote(String.to_integer(byte)), value, tid),
+          do: {unquote(name), stringify_attr_xaddr(value, tid)}
+
       "error_attribute" ->
         defp decode_attribute(unquote(String.to_integer(byte)), value, _),
           do: {String.to_atom(unquote(name)), decode_attr_err(value)}
@@ -208,12 +208,18 @@ defmodule XMediaLib.Stun do
         defp encode_attribute(unquote(String.to_atom(name)), value, _),
           do: {String.to_integer(unquote(byte)), encode_attr_err(value)}
 
+        defp stringify_attribute(unquote(String.to_integer(byte)), value, _),
+          do: {unquote(name), stringify_attr_err(value)}
+
       "request" ->
         defp decode_attribute(unquote(String.to_integer(byte)), value, _),
           do: {String.to_atom(unquote(name)), decode_change_req(value)}
 
         defp encode_attribute(unquote(String.to_atom(name)), value, _),
           do: {String.to_integer(unquote(byte)), encode_change_req(value)}
+
+        defp stringify_attribute(unquote(String.to_integer(byte)), value, _),
+          do: {unquote(name), stringify_change_req(value)}
     end
   end
 
@@ -225,6 +231,11 @@ defmodule XMediaLib.Stun do
   defp encode_attribute(other, value, _) do
     Logger.error("Could not find match for #{inspect(other)}")
     {other, value}
+  end
+
+  defp stringify_attribute(byte, value, _) do
+    Logger.error("Could not find match for #{inspect(byte)}")
+    {byte, value}
   end
 
   # Provides packet method type based on id and vice versa
@@ -418,6 +429,90 @@ defmodule XMediaLib.Stun do
     <<0::size(29), ip::size(1), port::size(1), 0::size(1)>>
   end
 
+  # Converts a given binary encoded list of attributes into an Erlang list of strings
+  defp stringify_attrs(pkt, len, tid, attrs \\ %{})
+
+  defp stringify_attrs(<<>>, 0, _, attrs) do
+    attrs
+  end
+
+  defp stringify_attrs(<<>>, length, _, attrs) do
+    Logger.info("STUN TLV wrong length #{length}")
+    attrs
+  end
+
+  defp stringify_attrs(<<type::size(16), item_length::size(16), bin::binary>>, length, tid, attrs) do
+    whole_pkt? = item_length == byte_size(bin)
+
+    padding_length =
+      case rem(item_length, 4) do
+        0 -> 0
+        _other when whole_pkt? -> 0
+        other -> 4 - other
+      end
+
+    <<value::binary-size(item_length), _::binary-size(padding_length), rest::binary>> = bin
+    {t, v} = stringify_attribute(type, value, tid)
+    new_length = length - (2 + 2 + item_length + padding_length)
+    stringify_attrs(rest, new_length, tid, Map.put(attrs, t, v))
+  end
+
+  # Converts a given binary encoded IPv4 address into an Erlang tuple
+  defp stringify_attr_addr(
+         <<0::size(8), 1::size(8), port::size(16), i0::size(8), i1::size(8), i2::size(8),
+           i3::size(8)>>
+       ),
+       do: "#{i0}.#{i1}.#{i2}.#{i3}:#{port}"
+
+  # Converts a given binary encoded IPv6 address into an Erlang tuple
+  defp stringify_attr_addr(
+         <<0::size(8), 2::size(8), port::size(16), i0::size(16), i1::size(16), i2::size(16),
+           i3::size(16), i4::size(16), i5::size(16), i6::size(16), i7::size(16)>>
+       ),
+       do: "#{i0}.#{i1}.#{i2}.#{i3}.#{i4}.#{i5}.#{i6}.#{i7}:#{port}"
+
+  # Converts a given XOR binary encoded IPv4 address into an Erlang tuple
+  defp stringify_attr_xaddr(<<0::size(8), 1::size(8), xport::size(16), xaddr::size(32)>>, _) do
+    port = bxor(xport, bsr(@stun_magic_cookie, 16))
+
+    <<i0::size(8), i1::size(8), i2::size(8), i3::size(8)>> =
+      <<bxor(xaddr, @stun_magic_cookie)::size(32)>>
+
+    "#{i0}.#{i1}.#{i2}.#{i3}:#{port}"
+  end
+
+  # Converts a given XOR binary encoded IPv6 address into an Erlang tuple
+  defp stringify_attr_xaddr(<<0::size(8), 2::size(8), xport::size(16), xaddr::size(128)>>, tid) do
+    port = bxor(xport, bsr(@stun_magic_cookie, 16))
+
+    <<i0::size(16), i1::size(16), i2::size(16), i3::size(16), i4::size(16), i5::size(16),
+      i6::size(16),
+      i7::size(16)>> = <<bxor(xaddr, bor(bsl(@stun_magic_cookie, 96), tid))::size(128)>>
+
+    "#{i0}.#{i1}.#{i2}.#{i3}.#{i4}.#{i5}.#{i6}.#{i7}:#{port}"
+  end
+
+  # Converts a given binary encoded error into an Erlang tuple
+  defp stringify_attr_err(<<_mbz::size(20), class::size(4), number::size(8), reason::binary>>),
+    do: "#{class * 100 + number}: #{reason}"
+
+  # Converts a given binary encoded change request into an Erlang tuple
+  defp stringify_change_req(<<_::size(29), change_ip::size(1), change_port::size(1), _::size(1)>>) do
+    ip =
+      case change_ip do
+        1 -> [:ip]
+        0 -> []
+      end
+
+    port =
+      case change_port do
+        1 -> [:port]
+        0 -> []
+      end
+
+    "#{inspect(ip ++ port)}"
+  end
+
   #####
   # Fingerprinting and auth
 
@@ -501,6 +596,4 @@ defmodule XMediaLib.Stun do
     do: insert_integrity(stun_binary, key)
 
   defp maybe_insert_integrity(stun_binary, %Stun{}), do: stun_binary
-
-  defp wrap(content, left, right), do: "#{left}#{content}#{right}"
 end

@@ -2,6 +2,7 @@ defmodule XMediaLib.StunTest do
   use ExUnit.Case
   use Bitwise
   alias XMediaLib.Stun
+  doctest XMediaLib.Stun
 
   @stun_bind_req_bin <<0, 1, 0, 16, 33, 18, 164, 66, 147, 49, 141, 31, 86, 17, 126, 65, 130, 38,
                        1, 0, 128, 34, 0, 12, 112, 106, 110, 97, 116, 104, 45, 49, 46, 52, 0, 0>>
