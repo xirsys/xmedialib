@@ -41,6 +41,7 @@ defmodule XMediaLib.Stun do
   # specifically of a STUN format.
   @stun_marker 0
   @stun_magic_cookie 0x2112A442
+  @integer_values [12, 13, 23, 25, 34, 32808]
 
   @doc """
   STUN object structure for per-connection usage
@@ -137,11 +138,21 @@ defmodule XMediaLib.Stun do
         ...>   source_address: {{127,0,0,1}, 12346},
         ...>   software: <<"XMediaLib-stun">>
         ...> }} |> Stun.encode()
-        iex> XMediaLib.Stun.stringify(response)
-        {:ok, 
-          "{\\"attrs\\":{\\"mapped_address\\":\\"127.0.0.1:12345\\",\\"software\\":\\"XMediaLib-stun\\",\\"source_address\\":\\"127.0.0.1:12346\\",\\"xor_mapped_address\\":\\"127.0.0.1:12345\\"},\\"class\\":\\"success\\",\\"method\\":\\"binding\\",\\"transactionid\\":123456789012}"}
+        iex> XMediaLib.Stun.pretty(response)
+        {:ok,
+          %{
+            attrs: %{
+              mapped_address: "127.0.0.1:12345",
+              software: "XMediaLib-stun",
+              source_address: "127.0.0.1:12346",
+              xor_mapped_address: "127.0.0.1:12345"
+            },
+            class: :success,
+            method: :binding,
+            transactionid: 123456789012
+          }}
   """
-  def stringify(stun_binary) do
+  def pretty(stun_binary) do
     <<@stun_marker::2, m0::5, c0::1, m1::3, c1::1, m2::4, length::16, @stun_magic_cookie::32,
       transactionid::96, rest3::binary>> = stun_binary
 
@@ -149,12 +160,13 @@ defmodule XMediaLib.Stun do
     class = get_class(<<c0::size(1), c1::size(1)>>)
     attrs = stringify_attrs(rest3, length, transactionid)
 
-    Jason.encode(%{
-      class: class,
-      method: method,
-      transactionid: transactionid,
-      attrs: attrs
-    })
+    {:ok,
+     %{
+       class: class,
+       method: method,
+       transactionid: transactionid,
+       attrs: attrs
+     }}
   end
 
   # -------------------------------------------------------------------------------
@@ -179,7 +191,9 @@ defmodule XMediaLib.Stun do
           do: {String.to_integer(unquote(byte)), value}
 
         defp stringify_attribute(unquote(String.to_integer(byte)), value, _),
-          do: {unquote(name), value}
+          do:
+            {String.to_atom(unquote(name)),
+             binary_to_value(value, unquote(String.to_integer(byte)))}
 
       "attribute" ->
         defp decode_attribute(unquote(String.to_integer(byte)), value, _),
@@ -189,7 +203,7 @@ defmodule XMediaLib.Stun do
           do: {String.to_integer(unquote(byte)), encode_attr_addr(value)}
 
         defp stringify_attribute(unquote(String.to_integer(byte)), value, _),
-          do: {unquote(name), stringify_attr_addr(value)}
+          do: {String.to_atom(unquote(name)), stringify_attr_addr(value)}
 
       "xattribute" ->
         defp decode_attribute(unquote(String.to_integer(byte)), value, tid),
@@ -199,7 +213,7 @@ defmodule XMediaLib.Stun do
           do: {String.to_integer(unquote(byte)), encode_attr_xaddr(value, tid)}
 
         defp stringify_attribute(unquote(String.to_integer(byte)), value, tid),
-          do: {unquote(name), stringify_attr_xaddr(value, tid)}
+          do: {String.to_atom(unquote(name)), stringify_attr_xaddr(value, tid)}
 
       "error_attribute" ->
         defp decode_attribute(unquote(String.to_integer(byte)), value, _),
@@ -209,7 +223,7 @@ defmodule XMediaLib.Stun do
           do: {String.to_integer(unquote(byte)), encode_attr_err(value)}
 
         defp stringify_attribute(unquote(String.to_integer(byte)), value, _),
-          do: {unquote(name), stringify_attr_err(value)}
+          do: {String.to_atom(unquote(name)), stringify_attr_err(value)}
 
       "request" ->
         defp decode_attribute(unquote(String.to_integer(byte)), value, _),
@@ -219,7 +233,7 @@ defmodule XMediaLib.Stun do
           do: {String.to_integer(unquote(byte)), encode_change_req(value)}
 
         defp stringify_attribute(unquote(String.to_integer(byte)), value, _),
-          do: {unquote(name), stringify_change_req(value)}
+          do: {String.to_atom(unquote(name)), stringify_change_req(value)}
     end
   end
 
@@ -596,4 +610,14 @@ defmodule XMediaLib.Stun do
     do: insert_integrity(stun_binary, key)
 
   defp maybe_insert_integrity(stun_binary, %Stun{}), do: stun_binary
+
+  defp binary_to_value(bin, type) when type in @integer_values,
+    do: :binary.decode_unsigned(bin)
+
+  defp binary_to_value(bin, _) do
+    case String.valid?(bin) do
+      true -> bin
+      _ -> :binary.decode_unsigned(bin)
+    end
+  end
 end
