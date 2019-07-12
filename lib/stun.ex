@@ -576,20 +576,26 @@ defmodule XMediaLib.Stun do
   # full check of integrity
   def check_integrity(stun_binary, nil), do: {false, stun_binary}
 
-  def check_integrity(stun_binary, key) when byte_size(stun_binary) > 20 + 24 do
+  def check_integrity(stun_binary, key) do
     s = byte_size(stun_binary) - 24
-
     case stun_binary do
       <<message::binary-size(s), 0x00::size(8), 0x08::size(8), 0x00::size(8), 0x14::size(8),
-        fingerprint::binary-size(20)>> ->
-        ^fingerprint = :crypto.hmac(:sha, key, message)
-        <<h::size(16), old_size::size(16), payload::binary>> = message
-        new_size = old_size - 24
-        {true, <<h::size(16), new_size::size(16), payload::binary>>}
+        integrity::binary-size(20)>> when byte_size(stun_binary) > 20 + 24 ->
+        do_check_integrity(stun_binary, integrity, message, key)
 
       _ ->
         Logger.info("No MESSAGE-INTEGRITY was found in STUN message.")
         {false, stun_binary}
+    end
+  end
+
+  defp do_check_integrity(stun_binary, integrity, message, key) do
+    with ^integrity <- :crypto.hmac(:sha, key, message),
+         <<h::size(16), old_size::size(16), payload::binary>> <- message,
+         new_size <- old_size - 24 do
+      {true, <<h::size(16), new_size::size(16), payload::binary>>}
+    else
+      _ -> {false, stun_binary}
     end
   end
 
@@ -598,15 +604,16 @@ defmodule XMediaLib.Stun do
     do: stun_binary
 
   defp insert_integrity(stun_binary, key) do
+    key = :crypto.hash(:md5, key)
     <<h::size(16), _::size(16), message::binary>> = stun_binary
     s = byte_size(stun_binary) + 24 - 20
-    fingerprint = :crypto.hmac(:sha, key, <<h::size(16), s::size(16), message::binary>>)
+    integrity = :crypto.hmac(:sha, key, <<h::size(16), s::size(16), message::binary>>)
 
     <<h::size(16), s::size(16), message::binary, 0x00::size(8), 0x08::size(8), 0x00::size(8),
-      0x14::size(8), fingerprint::binary>>
+      0x14::size(8), integrity::binary>>
   end
 
-  defp maybe_insert_integrity(stun_binary, %Stun{key: key}),
+  defp maybe_insert_integrity(stun_binary, %Stun{key: key}) when not is_nil(key),
     do: insert_integrity(stun_binary, key)
 
   defp maybe_insert_integrity(stun_binary, %Stun{}), do: stun_binary
