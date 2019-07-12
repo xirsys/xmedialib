@@ -124,7 +124,7 @@ defmodule XMediaLib.Stun do
       length::size(16), @stun_magic_cookie::size(32), config.transactionid::size(96),
       bin_attrs::binary>>
     |> maybe_insert_integrity(config)
-    |> maybe_insert_fingerprint(config)
+    |> insert_fingerprint()
   end
 
   @doc """
