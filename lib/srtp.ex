@@ -280,10 +280,10 @@ defmodule XMediaLib.Srtp do
   def check_auth(data, roc, SRTP_Authentication_Skein_Hmac, key, tag_length) do
     size = byte_size(data) - tag_length
     <<new_data::binary-size(size), tag::binary-size(tag_length)>> = data
-    {:ok, s} = :skerl.init(512)
-    {:ok, _} = :skerl.update(s, key)
-    {:ok, _} = :skerl.update(s, <<new_data::binary, roc::binary>>)
-    {:ok, <<^tag::binary-size(tag_length), _::binary>>} = :skerl.final(s)
+    # {:ok, s} = :skerl.init(512)
+    # {:ok, _} = :skerl.update(s, key)
+    # {:ok, _} = :skerl.update(s, <<new_data::binary, roc::binary>>)
+    # {:ok, <<^tag::binary-size(tag_length), _::binary>>} = :skerl.final(s)
     new_data
   end
 
@@ -298,10 +298,11 @@ defmodule XMediaLib.Srtp do
   end
 
   def append_auth(data, roc, SRTP_Authentication_Skein_Hmac, key, tag_length) do
-    {:ok, s} = :skerl.init(512)
-    {:ok, _} = :skerl.update(s, key)
-    {:ok, _} = :skerl.update(s, <<data::binary, roc::binary>>)
-    {:ok, <<tag::binary-size(tag_length), _::binary>>} = :skerl.final(s)
+    # {:ok, s} = :skerl.init(512)
+    # {:ok, _} = :skerl.update(s, key)
+    # {:ok, _} = :skerl.update(s, <<data::binary, roc::binary>>)
+    # {:ok, <<tag::binary-size(tag_length), _::binary>>} = :skerl.final(s)
+    tag = "..."
     <<data::binary, tag::binary>>
   end
 
