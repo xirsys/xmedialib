@@ -563,13 +563,6 @@ defmodule XMediaLib.Stun do
       0x04::size(8), crc::size(32)>>
   end
 
-  defp maybe_insert_fingerprint(stun_binary, %Stun{} = config) do
-    case config.fingerprint do
-      false -> stun_binary
-      true -> insert_fingerprint(stun_binary)
-    end
-  end
-
   # Checks for an integrity marker and its validity in a STUN binary (RFC 3489)
   # Must be called AFTER check_fingerprint due to forward RFC incompatibility
 
