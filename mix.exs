@@ -27,8 +27,8 @@ defmodule XMediaLib.Mixfile do
   defp deps() do
     [
       {:ex_doc, ">= 0.0.0", only: :dev},
-      {:elixir_make, "~> 0.4", runtime: false}
-      # {:skerl, git: "https://github.com/xirsys/skerl.git"}
+      {:elixir_make, "~> 0.4", runtime: false},
+      {:skex, "~> 0.1.0"}
     ]
   end
 

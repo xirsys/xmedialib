@@ -49,7 +49,7 @@ This package can be installed by adding `xmedialib` to your list of dependencies
 
 ```elixir
 def deps do
-  [{:xmedialib, git: "https://github.com/xirsys/xmedialib"}]
+  [{:xmedialib, "~> 0.1.0"}]
 end
 ```
 
