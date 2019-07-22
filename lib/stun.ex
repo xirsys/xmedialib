@@ -68,9 +68,10 @@ defmodule XMediaLib.Stun do
         {:ok, %XMediaLib.Stun{ attrs: %{}, class: :request, fingerprint: false, integrity: false, key: nil, method: :binding, ns: nil, peer_id: nil, transactionid: 177565706535525809372192520}}
   """
   def decode(stun_binary, key \\ nil) do
-    {fingerprint, rest} = check_fingerprint(stun_binary)
-    {integrity, rest2} = check_integrity(rest, key)
-    process_stun(rest2, key, fingerprint, integrity)
+    with {fingerprint, rest} when is_boolean(fingerprint) <- check_fingerprint(stun_binary),
+         {integrity, rest2} when is_boolean(integrity) <- check_integrity(rest, key) do
+      process_stun(rest2, key, fingerprint, integrity)
+    end
   end
 
   def process_stun(stun_binary, key, fingerprint, integrity) do
@@ -124,7 +125,7 @@ defmodule XMediaLib.Stun do
       length::size(16), @stun_magic_cookie::size(32), config.transactionid::size(96),
       bin_attrs::binary>>
     |> maybe_insert_integrity(config)
-    |> insert_fingerprint()
+    |> maybe_insert_fingerprint(config)
   end
 
   @doc """
@@ -544,7 +545,9 @@ defmodule XMediaLib.Stun do
           new_size = old_size - 8
           {true, <<h::size(16), new_size::size(16), payload::binary>>}
         rescue
-          _ -> {false, stun_binary}
+          _ ->
+            Logger.info("CRC check failed.")
+            {:error, stun_binary}
         end
 
       _ ->
@@ -563,11 +566,18 @@ defmodule XMediaLib.Stun do
       0x04::size(8), crc::size(32)>>
   end
 
+  defp maybe_insert_fingerprint(stun_binary, %Stun{} = config) do
+    case config.fingerprint do
+      false -> stun_binary
+      true -> insert_fingerprint(stun_binary)
+    end
+  end
+
   # Checks for an integrity marker and its validity in a STUN binary (RFC 3489)
   # Must be called AFTER check_fingerprint due to forward RFC incompatibility
 
   # full check of integrity
-  def check_integrity(stun_binary, nil), do: {false, stun_binary}
+  # def check_integrity(stun_binary, nil), do: {false, stun_binary}
 
   def check_integrity(stun_binary, key) do
     s = byte_size(stun_binary) - 24
@@ -588,7 +598,9 @@ defmodule XMediaLib.Stun do
          new_size <- old_size - 24 do
       {true, <<h::size(16), new_size::size(16), payload::binary>>}
     else
-      _ -> {false, stun_binary}
+      _ ->
+        Logger.info("MESSAGE-INTEGRITY false.")
+        {:error, stun_binary}
     end
   end
 
@@ -597,7 +609,6 @@ defmodule XMediaLib.Stun do
     do: stun_binary
 
   defp insert_integrity(stun_binary, key) do
-    key = :crypto.hash(:md5, key)
     <<h::size(16), _::size(16), message::binary>> = stun_binary
     s = byte_size(stun_binary) + 24 - 20
     integrity = :crypto.hmac(:sha, key, <<h::size(16), s::size(16), message::binary>>)
