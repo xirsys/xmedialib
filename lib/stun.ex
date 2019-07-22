@@ -295,12 +295,13 @@ defmodule XMediaLib.Stun do
     attrs
   end
 
-  defp decode_attrs(<<>>, length, _, attrs) do
-    Logger.info("STUN TLV wrong length #{length}")
+  defp decode_attrs(<<>>, len, _, attrs) do
+    Logger.info("STUN TLV wrong length #{len}")
     attrs
   end
 
-  defp decode_attrs(<<type::size(16), item_length::size(16), bin::binary>>, length, tid, attrs) do
+  defp decode_attrs(<<type::size(16), item_length::size(16), bin::binary>>, len, tid, attrs) do
+    item_length = min(item_length, byte_size(bin))
     whole_pkt? = item_length == byte_size(bin)
 
     padding_length =
@@ -312,7 +313,7 @@ defmodule XMediaLib.Stun do
 
     <<value::binary-size(item_length), _::binary-size(padding_length), rest::binary>> = bin
     {t, v} = decode_attribute(type, value, tid)
-    new_length = length - (2 + 2 + item_length + padding_length)
+    new_length = len - (2 + 2 + item_length + padding_length)
     decode_attrs(rest, new_length, tid, Map.put(attrs, t, v))
   end
 
@@ -537,18 +538,10 @@ defmodule XMediaLib.Stun do
     s = byte_size(stun_binary) - 8
 
     case stun_binary do
-      <<message::binary-size(s), 0x80::8, 0x28::8, 0x00::8, 0x04::8, crc::32>> ->
-        # Die if CRC doesn't match
-        try do
-          ^crc = bxor(:erlang.crc32(message), 0x5354554E)
-          <<h::size(16), old_size::size(16), payload::binary>> = message
-          new_size = old_size - 8
-          {true, <<h::size(16), new_size::size(16), payload::binary>>}
-        rescue
-          _ ->
-            Logger.info("CRC check failed.")
-            {:error, stun_binary}
-        end
+      <<message::binary-size(s), 0x80::8, 0x28::8, 0x00::8, 0x04::8, _crc::32>> ->
+        <<h::size(16), old_size::size(16), payload::binary>> = message
+        new_size = old_size - 8
+        {true, <<h::size(16), new_size::size(16), payload::binary>>}
 
       _ ->
         Logger.debug("No CRC was found in a STUN message.")
@@ -581,9 +574,11 @@ defmodule XMediaLib.Stun do
 
   def check_integrity(stun_binary, key) do
     s = byte_size(stun_binary) - 24
+
     case stun_binary do
       <<message::binary-size(s), 0x00::size(8), 0x08::size(8), 0x00::size(8), 0x14::size(8),
-        integrity::binary-size(20)>> when byte_size(stun_binary) > 20 + 24 ->
+        integrity::binary-size(20)>>
+      when byte_size(stun_binary) > 20 + 24 and not is_nil(key) ->
         do_check_integrity(stun_binary, integrity, message, key)
 
       _ ->

@@ -1,6 +1,6 @@
 # Changelog
 
-22-07-2019 - Stun should not hash its passed key
+22-07-2019 - Stun should not hash its passed key. Disable fingerprint check for now. Fix too-short packets from LibJingle.
 
 19-07-2019 - Package for deploy to hex.pm
 
