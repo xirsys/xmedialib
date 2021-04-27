@@ -323,9 +323,9 @@ defmodule XMediaLib.StunTest do
   def public_servers() do
     [
       # address ------- UDP -- TCP -- TLS
-      # {'turn01.uswest.xirsys.com', 3478, 3478, 5349},
+      {'us-turn10.xirsys.com', 3478, 3478, 5349},
       # {'stun.fwdnet.net', 3478, 3478, 5349},
-      {'stun.ideasip.com', 3478, 3478, 5349}
+      # {'stun.ideasip.com', 3478, 3478, 5349},
       # {'stun01.sipphone.com', 3478, 3478, 5349},
       # {'stun.softjoys.com', 3478, 3478, 5349},
       # {'stun.voipbuster.com', 3478, 3478, 5349},

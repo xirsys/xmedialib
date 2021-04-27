@@ -4,7 +4,14 @@ ERLANG_PATH = $(shell erl -eval 'io:format("~s", [lists:concat([code:root_dir(),
 CFLAGS += -I$(ERLANG_PATH)
 CFLAGS += -Ic_src
 CFLAGS += -I/usr/include/opus
-LDFLAGS += -L/usr/local/lib:/usr/lib
+LDFLAGS += -L/usr/local/lib
+ifeq ($(shell uname), Darwin)
+	CFLAGS += -I/opt/local/include
+	CFLAGS += -I/opt/local/include/opus
+	LDFLAGS += -L/opt/local/lib
+else
+	LDFLAGS += -L/usr/lib
+endif
 SAMPLERATE = -lsamplerate
 SPANDSP = -lspandsp -ltiff -lm
 BCG = -lbcg729

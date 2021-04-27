@@ -4,7 +4,7 @@ defmodule XMediaLib.Mixfile do
   def project() do
     [
       app: :xmedialib,
-      version: "0.1.2",
+      version: "0.1.3",
       elixir: "~> 1.7",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
@@ -21,14 +21,17 @@ defmodule XMediaLib.Mixfile do
   end
 
   def application() do
-    [applications: [:logger]]
+    [
+      applications: [:logger],
+      extra_applications: [:crypto]
+    ]
   end
 
   defp deps() do
     [
       {:ex_doc, ">= 0.0.0", only: :dev},
-      {:elixir_make, "~> 0.4", runtime: false},
-      {:skex, "~> 0.1.0"}
+      {:elixir_make, "~> 0.6.2", runtime: false},
+      {:skex, "~> 0.1.2"}
     ]
   end
 
